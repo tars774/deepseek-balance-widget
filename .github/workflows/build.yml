@@ -1,0 +1,59 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore src/DeepSeekBalanceWidget.sln
+
+      - name: Build (Release, 0 警告 0 错误口径)
+        run: dotnet build src/DeepSeekBalanceWidget.sln -c Release --no-restore
+
+      # 注意：集成测试包含真实 WPF 组件（STA + Dispatcher 线程）。
+      # GitHub windows runner 通常带有交互桌面会话（interactive desktop），
+      # 但本工程在 CI 环境的首次运行结果尚未验证（首次推送后请核对
+      # tests/DeepSeekBalanceWidget.IntegrationTests 的实际表现）；
+      # 若 runner 会话语义导致用例失败，可将其拆分为独立 job 或加 continue-on-error 并在此注明原因。
+      - name: Test (Release)
+        run: dotnet test src/DeepSeekBalanceWidget.sln -c Release --no-build --logger "trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore
+
+      # 可选：发布产物作为 artifact（SCD 压缩单文件，参数与 docs/deployment.md §2 一致）
+      - name: Publish (SCD single-file)
+        run: >
+          dotnet publish src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj
+          -c Release -r win-x64
+          -p:PublishSingleFile=true -p:SelfContained=true
+          -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+          -p:DebugType=None -p:DebugSymbols=false
+          -o release/publish
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepSeekBalanceWidget-win-x64
+          path: release/publish/DeepSeekBalanceWidget.exe
+          if-no-files-found: error
