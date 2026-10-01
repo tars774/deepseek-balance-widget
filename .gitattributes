@@ -1,0 +1,28 @@
+# 默认按文本处理并在提交时统一换行符
+* text=auto
+
+# 源码
+*.cs text diff=csharp
+*.xaml text
+*.csproj text
+*.sln text eol=crlf
+*.json text
+*.yml text
+*.yaml text
+*.md text
+*.html text
+*.css text
+*.js text
+
+# Windows 专属脚本
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# 二进制资源
+*.png binary
+*.jpg binary
+*.ico binary
+*.exe binary
+*.dll binary
+*.pdb binary

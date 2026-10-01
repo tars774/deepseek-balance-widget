@@ -1,0 +1,29 @@
+# 构建产物
+bin/
+obj/
+release/
+publish/
+
+# IDE / VS
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# 本地运行数据与日志
+*.log
+qa-tmp/
+
+# 内部过程档案（本地留档，不入公开仓库）
+docs/phase-records/
+# 探针工程（一次性最小验证工程，结论已汇总进 docs/probe-results.md，本地留档）
+probes/
+
+# 本地配置样例与临时文件
+*.tmp
+.DS_Store
+Thumbs.db
+
+# ZCode 工具文件（本地工具配置，不属于开源仓库内容）
+.zcodeignore
