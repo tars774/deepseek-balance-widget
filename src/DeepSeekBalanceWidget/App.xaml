@@ -1,0 +1,101 @@
+<Application x:Class="DeepSeekBalanceWidget.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <!--
+      全局资源：A1 语义刷子（占位初值，实际由 ThemeManager 按「主题 × 状态」注入 A1 §3 精确色值）
+      + 探针 A 已验证的圆形图标按钮 / Feather 线性描边样式（A1 §5-5）。
+      ShutdownMode=OnExplicitShutdown：常驻托盘应用，退出统一走 RequestExit 清理链（A-4 不用 Environment.Exit）。
+    -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/DeepSeekBalanceWidget;component/Panel/Themes/Light.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+            <SolidColorBrush x:Key="Brush.Bg" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="Brush.Fg" Color="#1B2430"/>
+            <SolidColorBrush x:Key="Brush.Sub" Color="#5B6472"/>
+            <SolidColorBrush x:Key="Brush.Muted" Color="#9AA2AD"/>
+            <SolidColorBrush x:Key="Brush.Line" Color="#E7EAEE"/>
+            <SolidColorBrush x:Key="Brush.Card" Color="#F5F7F9"/>
+            <SolidColorBrush x:Key="Brush.Acc" Color="#17994E"/>
+            <SolidColorBrush x:Key="Brush.AccSoft" Color="#E6F6EC"/>
+            <SolidColorBrush x:Key="Brush.AccDeep" Color="#0F7A3C"/>
+
+            <!-- 线性图标描边：2px / 圆头 / 圆拐角，颜色跟随按钮 Foreground（悬停变强调色） -->
+            <Style x:Key="FeatherStroke" TargetType="Shape">
+                <Setter Property="StrokeThickness" Value="2"/>
+                <Setter Property="StrokeLineJoin" Value="Round"/>
+                <Setter Property="StrokeStartLineCap" Value="Round"/>
+                <Setter Property="StrokeEndLineCap" Value="Round"/>
+                <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+            </Style>
+
+            <!-- 26×26 圆形图标按钮：底色 Card，图标常态 Sub 悬停 Acc（A1 §2 的 Card/Sub/Acc 变量） -->
+            <Style x:Key="CircleIconButton" TargetType="Button">
+                <Setter Property="Width" Value="26"/>
+                <Setter Property="Height" Value="26"/>
+                <Setter Property="Background" Value="{DynamicResource Brush.Card}"/>
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Sub}"/>
+                <Setter Property="Focusable" Value="False"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" CornerRadius="13" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.Acc}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- 刷新按钮：A1 约定 4——刷新进行中变 AccDeep（悬停仍为点击反馈 Acc） -->
+            <Style x:Key="CircleRefreshButton" TargetType="Button" BasedOn="{StaticResource CircleIconButton}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsRefreshing}" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.AccDeep}"/>
+                    </DataTrigger>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.Acc}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- v1.1 图钉钮：与齿轮/刷新同款 26×26 圆钮；未钉=描边常态色（Sub），已钉=前景/填充变强调色 acc，
+                 悬停变 acc 与既有按钮一致；tooltip 随钉住状态切换 -->
+            <Style x:Key="CirclePinButton" TargetType="Button" BasedOn="{StaticResource CircleIconButton}">
+                <Setter Property="ToolTip" Value="钉住面板"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.Acc}"/>
+                        <Setter Property="ToolTip" Value="取消钉住"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- v1.1 图钉造型：描边沿用 FeatherStroke（跟随按钮 Foreground）；钉住时整形填充同色 -->
+            <Style x:Key="PinGlyph" TargetType="Path" BasedOn="{StaticResource FeatherStroke}">
+                <Setter Property="Fill" Value="Transparent"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                        <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

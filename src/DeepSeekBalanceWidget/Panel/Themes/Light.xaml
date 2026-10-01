@@ -1,0 +1,21 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+      A1 §3 浅色主题完整变量表（docs/ui-selection.md，对全部 UI 有约束力）：
+      中性色 6 项 + 状态语义色 6 项（高峰/空闲 × acc/acc-soft/acc-deep）。
+      ThemeManager 启动时换入本字典（深色换 Dark.xaml），并按「状态 × 主题」把精确值注入 Brush.*。
+    -->
+    <Color x:Key="Color.Bg">#FFFFFF</Color>
+    <Color x:Key="Color.Fg">#1B2430</Color>
+    <Color x:Key="Color.Sub">#5B6472</Color>
+    <Color x:Key="Color.Muted">#9AA2AD</Color>
+    <Color x:Key="Color.Line">#E7EAEE</Color>
+    <Color x:Key="Color.Card">#F5F7F9</Color>
+
+    <Color x:Key="Color.AccPeak">#E4720B</Color>
+    <Color x:Key="Color.AccSoftPeak">#FDF0E3</Color>
+    <Color x:Key="Color.AccDeepPeak">#C25E06</Color>
+    <Color x:Key="Color.AccIdle">#17994E</Color>
+    <Color x:Key="Color.AccSoftIdle">#E6F6EC</Color>
+    <Color x:Key="Color.AccDeepIdle">#0F7A3C</Color>
+</ResourceDictionary>
