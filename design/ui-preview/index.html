@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeepSeek 余额峰谷监控小组件 — 界面候选项预览</title>
+<style>
+/* ============ 基础 ============ */
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+[id]{scroll-margin-top:18px}
+:root{
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  --mono:"Cascadia Mono",Consolas,"SF Mono","Courier New",monospace;
+  --ink:#131B29;--ink2:#4B5563;--ink3:#8A93A2;--edge:#DCE1E8;--paper:#EDF0F4;
+}
+body{background:var(--paper);font-family:var(--sans);color:var(--ink);padding:30px 22px 70px;line-height:1.5}
+.wrap{max-width:1420px;margin:0 auto}
+
+/* ============ 页首 / 导航 ============ */
+.hero h1{font-size:24px;font-weight:800;letter-spacing:.5px}
+.hero .meta{margin-top:8px;font-size:13px;color:var(--ink2);max-width:1360px}
+.hero .legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:10px;font-size:12.5px;color:var(--ink2);align-items:center}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;vertical-align:-1px;margin-right:5px}
+.dot.o{background:#E4720B}.dot.g{background:#17994E}
+.toc{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.toc a{display:inline-block;padding:6px 14px;border-radius:999px;background:#fff;border:1px solid var(--edge);
+  color:var(--ink);font-size:13px;text-decoration:none;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.toc a:hover{border-color:#94A3B8}
+main{margin-top:28px}
+
+/* ============ 分组 / 候选标题 ============ */
+.sg>h2,.matsec>h2,.howto>h2{font-size:18px;font-weight:800;padding-left:10px;border-left:4px solid #334155}
+.sg .intro{margin-top:8px;font-size:13px;color:var(--ink2);max-width:1360px}
+.cand{margin-top:24px}
+.cand-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cnum{font-size:17px;font-weight:900;color:#fff;background:#1E293B;border-radius:9px;padding:5px 13px;letter-spacing:1px}
+.cand-h h3{font-size:16px;font-weight:700}
+.hspan{font-size:11px;color:var(--ink3);border:1px solid var(--edge);border-radius:99px;padding:2px 10px;background:#fff}
+.shots{display:flex;flex-wrap:wrap;gap:26px;margin-top:14px;align-items:flex-start}
+.shot{display:flex;flex-direction:column;gap:7px}
+.cap{font-size:10.5px;color:var(--ink3);text-align:center;letter-spacing:1px}
+.notes{margin-top:12px;font-size:12.5px;color:var(--ink2);max-width:1380px;line-height:1.8}
+.notes b{color:var(--ink)}
+
+/* ============ 面板基座与主题变量 ============ */
+/* 规格：宽固定 320px；高度按候选固定在 220–260px；无边框、圆角、轻微阴影 */
+.panel{width:320px;flex:0 0 auto;border-radius:14px;position:relative;overflow:hidden;border:none;
+  display:flex;flex-direction:column;font-family:var(--sans);
+  box-shadow:0 10px 26px rgba(15,23,42,.16)}
+.p-light{--bg:#FFFFFF;--fg:#1B2430;--sub:#5B6472;--muted:#9AA2AD;--line:#E7EAEE;--card:#F5F7F9;
+  --acc:#E4720B;--acc-soft:#FDF0E3;--acc-deep:#C25E06;}
+.p-light.idle{--acc:#17994E;--acc-soft:#E6F6EC;--acc-deep:#0F7A3C;}
+.p-dark{--bg:#1B212C;--fg:#F1F4F8;--sub:#A9B2BE;--muted:#69737F;--line:#303947;--card:#242D3A;
+  --acc:#FF9C4A;--acc-soft:rgba(255,156,74,.14);--acc-deep:#E4720B;}
+.p-dark.idle{--acc:#46D27F;--acc-soft:rgba(70,210,127,.14);--acc-deep:#17994E;}
+.panel{background:var(--bg);color:var(--fg)}
+.ic{width:16px;height:16px;display:block;stroke-width:2;flex:0 0 auto}
+
+/* ============ A1 单列紧凑一屏直读（高 230） ============ */
+.c-a1{height:230px;padding:14px 16px}
+.c-a1 .top{display:flex;align-items:center;justify-content:space-between}
+.c-a1 .pill{font-size:12px;font-weight:600;color:var(--acc);background:var(--acc-soft);padding:4px 13px;border-radius:999px}
+.c-a1 .tools{display:flex;gap:8px}
+.c-a1 .ibtn{width:26px;height:26px;border-radius:50%;background:var(--card);color:var(--sub);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:color .15s}
+.c-a1 .ibtn:hover{color:var(--acc)}
+.c-a1 .ibtn .ic{width:14px;height:14px}
+.c-a1 .bal{margin-top:18px}
+.c-a1 .num{font-size:30px;font-weight:800;line-height:1.15;letter-spacing:.5px;color:var(--fg)}
+.c-a1 .lbl{margin-top:2px;font-size:11px;color:var(--muted);letter-spacing:3px}
+.c-a1 .cd{margin-top:16px}
+.c-a1 .cdt{font-size:12px;color:var(--sub)}
+.c-a1 .cdt b{color:var(--fg);font-weight:700;font-variant-numeric:tabular-nums}
+.c-a1 .track{margin-top:8px;height:4px;border-radius:99px;background:var(--line);overflow:hidden}
+.c-a1 .track i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:99px}
+.c-a1 .foot{margin-top:auto;font-size:10px;color:var(--muted)}
+
+/* ============ A2 大余额居中 · 大留白（高 250） ============ */
+.c-a2{height:250px;padding:16px 18px}
+.c-a2 .top{display:flex;justify-content:space-between;align-items:center}
+.c-a2 .pill{font-size:11px;font-weight:600;color:var(--acc);border:1px solid var(--acc);padding:3px 13px;
+  border-radius:999px;background:transparent;letter-spacing:1px}
+.c-a2 .tools{display:flex;gap:12px;opacity:.5;transition:opacity .2s}
+.c-a2 .tools:hover{opacity:1}
+.c-a2 .tools span{color:var(--sub);cursor:pointer;display:flex}
+.c-a2 .tools .ic{width:17px;height:17px}
+.c-a2 .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.c-a2 .num{font-size:40px;font-weight:700;letter-spacing:1px;color:var(--fg);line-height:1}
+.c-a2 .lbl{font-size:10px;letter-spacing:6px;color:var(--muted);margin-top:7px}
+.c-a2 .cdt{font-size:11px;color:var(--muted);margin-top:12px}
+.c-a2 .cdt b{color:var(--sub);font-weight:600;font-variant-numeric:tabular-nums}
+.c-a2 .track{width:180px;margin:9px auto 0;height:3px;border-radius:99px;background:var(--line)}
+.c-a2 .track i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:99px}
+.c-a2 .foot{text-align:center;font-size:10px;color:var(--muted)}
+
+/* ============ A3 状态/倒计时双列网格 + 底部工具行（高 240） ============ */
+.c-a3{height:240px;padding:14px 16px}
+.c-a3 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.c-a3 .cell{border-radius:10px;padding:10px 11px}
+.c-a3 .cell.status{background:var(--acc-soft);border-left:3px solid var(--acc)}
+.c-a3 .tag{font-size:12px;font-weight:700;color:var(--acc)}
+.c-a3 .en{display:block;font-size:9px;letter-spacing:2px;color:var(--acc);opacity:.65;margin-top:3px}
+.c-a3 .cell.cd{background:var(--card)}
+.c-a3 .cdt{font-size:10.5px;color:var(--sub);line-height:1.4}
+.c-a3 .cdt b{color:var(--fg);font-weight:700;font-variant-numeric:tabular-nums}
+.c-a3 .ticks{margin-top:7px;height:6px;border-radius:3px;background:var(--line);position:relative;overflow:hidden}
+.c-a3 .ticks i{display:block;height:100%;width:var(--w);background:var(--acc)}
+.c-a3 .ticks::after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,transparent 0 9px,var(--bg) 9px 11px)}
+.c-a3 .bal{margin-top:14px;display:flex;align-items:baseline;gap:8px}
+.c-a3 .cur{font-size:11px;font-weight:700;color:var(--acc);background:var(--acc-soft);border-radius:6px;padding:2px 6px}
+.c-a3 .num{font-size:30px;font-weight:800;color:var(--fg);line-height:1.1}
+.c-a3 .lbl{font-size:10px;color:var(--muted);margin-left:auto;letter-spacing:2px}
+.c-a3 .toolrow{margin-top:auto;display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.c-a3 .mini{font-size:10px;color:var(--muted);margin-right:auto}
+.c-a3 .sq{width:26px;height:26px;border-radius:8px;background:var(--acc-soft);color:var(--acc);
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+.c-a3 .sq .ic{width:13px;height:13px}
+
+/* ============ B1 HUD 风格（高 240） ============ */
+.c-b1{height:240px;padding:14px 16px;font-family:var(--mono);
+  background-color:var(--bg0);
+  background-image:
+    repeating-linear-gradient(0deg,rgba(127,147,178,.05) 0 1px,transparent 1px 3px),
+    linear-gradient(var(--gridc) 1px,transparent 1px),
+    linear-gradient(90deg,var(--gridc) 1px,transparent 1px);
+  background-size:auto,26px 26px,26px 26px}
+.c-b1.p-dark{--bg0:#0A111E;--gridc:rgba(96,132,192,.13)}.c-b1.p-dark.peak{--acc:#FFA14F;--acc-soft:rgba(255,161,79,.12)}
+.c-b1.p-dark.idle{--acc:#4ADE8C;--acc-soft:rgba(74,222,140,.12)}
+.c-b1.p-light{--bg0:#F1F5FB;--gridc:rgba(70,100,150,.13)}.c-b1.p-light.peak{--acc:#D96A08;--acc-soft:rgba(217,106,8,.08)}
+.c-b1.p-light.idle{--acc:#12904A;--acc-soft:rgba(18,144,74,.08)}
+.c-b1 .top{display:flex;justify-content:space-between;align-items:center}
+.c-b1 .tag{font-size:11px;letter-spacing:2px;color:var(--acc);border:1px solid var(--acc);
+  padding:3px 9px;background:var(--acc-soft);font-family:var(--sans);font-weight:600}
+.c-b1 .tag i{font-style:normal;font-size:9px;opacity:.6;margin-left:7px;letter-spacing:1.5px}
+.c-b1 .tools{display:flex;gap:6px}
+.c-b1 .sq{width:24px;height:24px;border:1px solid var(--line);color:var(--sub);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;background:rgba(127,147,178,.05)}
+.c-b1 .sq:hover{color:var(--acc);border-color:var(--acc)}
+.c-b1 .sq .ic{width:12px;height:12px}
+.c-b1 .bal{margin-top:16px}
+.c-b1 .num{font-size:28px;font-weight:700;color:var(--fg);letter-spacing:1px;line-height:1.1}
+.c-b1 .lbl{font-size:9px;letter-spacing:3px;color:var(--muted);margin-top:3px}
+.c-b1 .cd{margin-top:15px}
+.c-b1 .cdt{font-size:11px;color:var(--sub);font-family:var(--sans)}
+.c-b1 .cdt b{color:var(--acc);font-family:var(--mono);font-variant-numeric:tabular-nums}
+.c-b1 .hud{margin-top:7px;height:9px;border:1px solid var(--line);position:relative;background:rgba(127,147,178,.06)}
+.c-b1 .hud i{display:block;height:100%;width:var(--w);background:var(--acc)}
+.c-b1 .hud::after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,transparent 0 10px,var(--bg0) 10px 12px)}
+.c-b1 .bar{margin-top:auto;border-top:1px solid var(--line);padding-top:8px;font-size:10px;
+  color:var(--muted);display:flex;justify-content:space-between;font-family:var(--sans)}
+
+/* ============ B2 霓虹描边（高 250） ============ */
+.c-b2{height:250px;padding:16px 18px 26px;
+  background-color:var(--bg0);
+  background-image:radial-gradient(130% 100% at 50% 0%,var(--bg1),transparent 75%)}
+.c-b2.p-dark{--bg0:#150F23;--bg1:#28183F}.c-b2.p-dark.peak{--acc:#FF8A3D;--acc-soft:rgba(255,138,61,.12);--glow:rgba(255,138,61,.45)}
+.c-b2.p-dark.idle{--acc:#35E08A;--acc-soft:rgba(53,224,138,.12);--glow:rgba(53,224,138,.42)}
+.c-b2.p-light{--bg0:#FAF5F0;--bg1:#FFFFFF}.c-b2.p-light.peak{--acc:#E06A08;--acc-soft:rgba(224,106,8,.08);--glow:rgba(224,106,8,.3)}
+.c-b2.p-light.idle{--acc:#0FA457;--acc-soft:rgba(15,164,87,.08);--glow:rgba(15,164,87,.3)}
+.c-b2 .top{display:flex;justify-content:space-between;align-items:center}
+.c-b2 .pill{font-size:11px;font-weight:600;color:var(--acc);border:1px solid var(--acc);border-radius:999px;
+  padding:4px 14px;background:var(--acc-soft);box-shadow:0 0 10px var(--glow),inset 0 0 6px var(--glow)}
+.c-b2 .tools{display:flex;gap:9px}
+.c-b2 .ring{width:28px;height:28px;border-radius:50%;border:1px solid var(--acc);color:var(--acc);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 0 8px var(--glow)}
+.c-b2 .ring .ic{width:13px;height:13px}
+.c-b2 .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.c-b2 .num{font-size:38px;font-weight:700;color:var(--fg);letter-spacing:1px;line-height:1;text-shadow:0 0 16px var(--glow)}
+.c-b2 .lbl{font-size:10px;letter-spacing:5px;color:var(--sub);margin-top:7px}
+.c-b2 .cdt{text-align:center;font-size:11px;color:var(--sub)}
+.c-b2 .cdt b{color:var(--acc);font-variant-numeric:tabular-nums;text-shadow:0 0 8px var(--glow)}
+.c-b2 .neon{margin-top:8px;height:6px;border-radius:99px;background:var(--line)}
+.c-b2 .neon i{display:block;height:100%;width:var(--w);border-radius:99px;background:var(--acc);
+  box-shadow:0 0 10px var(--glow),0 0 18px var(--glow)}
+.c-b2 .corner{position:absolute;right:12px;bottom:7px;font-size:9px;color:var(--muted)}
+
+/* ============ B3 终端命令行风（高 230） ============ */
+.c-b3{height:230px;padding:12px 14px;font-family:var(--mono);background:var(--bg0)}
+.c-b3.p-dark{--bg0:#0B0E12}.c-b3.p-dark.peak{--pr:#86D996;--acc:#FFA14F;--acc-deep:#E4720B}
+.c-b3.p-dark.idle{--acc:#4ADE8C;--acc-deep:#22A85E}
+.c-b3.p-light{--bg0:#F3F4F1}.c-b3.p-light.peak{--pr:#2E7D4F;--acc:#D96A08;--acc-deep:#B85406}
+.c-b3.p-light.idle{--acc:#128A47;--acc-deep:#0C6B37}
+.c-b3 .ln{font-size:11px;color:var(--fg);opacity:.92}
+.c-b3 .ln+.ln{margin-top:7px}
+.c-b3 .pr{color:var(--pr);font-weight:700}
+.c-b3 .u{font-weight:700}
+.c-b3 .p{color:var(--sub)}
+.c-b3 .tag{color:var(--acc);font-weight:700}
+.c-b3 .tag::before{content:"[";color:var(--muted);font-weight:400}
+.c-b3 .tag::after{content:"]";color:var(--muted);font-weight:400}
+.c-b3 .num{font-size:21px;font-weight:700;color:var(--fg);letter-spacing:.5px}
+.c-b3 .t{color:var(--acc);font-weight:700;font-variant-numeric:tabular-nums}
+.c-b3 .pbar{height:12px;border:1px solid var(--line);padding:1px;margin:8px 0 7px}
+.c-b3 .pbar i{display:block;height:100%;width:var(--w);
+  background:repeating-linear-gradient(90deg,var(--acc) 0 9px,transparent 9px 12px)}
+.c-b3 .cm{color:var(--muted);font-style:italic;font-size:10px}
+.c-b3 .cmdrow{margin-top:auto;display:flex;align-items:center;gap:8px}
+.c-b3 .chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);color:var(--sub);
+  padding:3px 7px;font-size:10px;cursor:pointer;background:transparent}
+.c-b3 .chip:hover{color:var(--acc);border-color:var(--acc)}
+.c-b3 .chip .ic{width:10px;height:10px}
+.c-b3 .cursor{width:7px;height:13px;background:var(--sub);display:inline-block;margin-left:2px;
+  animation:blink 1.2s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* ============ C1 软 UI / Neumorphism（高 250） ============ */
+.c-c1{height:250px;padding:16px 18px;background:var(--bg0);box-shadow:0 10px 26px rgba(15,23,42,.18)}
+.c-c1.p-light{--bg0:#E7EBF1;--shD:rgba(163,177,198,.7);--shL:rgba(255,255,255,.92)}.c-c1.p-light.peak{--acc:#E4720B}
+.c-c1.p-light.idle{--acc:#17994E}
+.c-c1.p-dark{--bg0:#262B34;--shD:rgba(0,0,0,.55);--shL:rgba(255,255,255,.05)}.c-c1.p-dark.peak{--acc:#FF9C4A}
+.c-c1.p-dark.idle{--acc:#46D27F}
+.c-c1 .top{display:flex;justify-content:space-between;align-items:center}
+.c-c1 .pill{font-size:11px;font-weight:700;color:var(--acc);border-radius:999px;padding:6px 15px;
+  box-shadow:inset 3px 3px 6px var(--shD),inset -3px -3px 6px var(--shL)}
+.c-c1 .tools{display:flex;gap:11px}
+.c-c1 .knob{width:30px;height:30px;border-radius:50%;color:var(--sub);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:4px 4px 9px var(--shD),-4px -4px 9px var(--shL)}
+.c-c1 .knob:active{box-shadow:inset 3px 3px 6px var(--shD),inset -3px -3px 6px var(--shL)}
+.c-c1 .knob .ic{width:14px;height:14px}
+.c-c1 .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.c-c1 .num{font-size:32px;font-weight:700;color:var(--fg);line-height:1;text-shadow:0 1px 0 var(--shL)}
+.c-c1 .lbl{font-size:10px;letter-spacing:5px;color:var(--sub);margin-top:7px}
+.c-c1 .cdt{font-size:11px;color:var(--sub);text-align:center}
+.c-c1 .cdt b{color:var(--acc);font-variant-numeric:tabular-nums}
+.c-c1 .groove{margin-top:9px;height:11px;border-radius:99px;overflow:hidden;
+  box-shadow:inset 3px 3px 6px var(--shD),inset -3px -3px 6px var(--shL)}
+.c-c1 .groove i{display:block;height:100%;width:var(--w);border-radius:99px;background:var(--acc)}
+.c-c1 .foot{margin-top:11px;text-align:center;font-size:10px;color:var(--sub);opacity:.72}
+
+/* ============ C2 分层纸片卡片（高 240） ============ */
+.c-c2{height:240px;padding:12px 14px;
+  background-color:var(--bg0);
+  background-image:linear-gradient(160deg,var(--bg1),transparent 62%)}
+.c-c2.p-light{--bg0:#F1EADD;--bg1:#FBF8F1;--card2:#FFFFFF}.c-c2.p-light.peak{--acc:#E4720B}
+.c-c2.p-light.idle{--acc:#17994E}
+.c-c2.p-dark{--bg0:#211E1D;--bg1:#2D2927;--card2:#383330}.c-c2.p-dark.peak{--acc:#FF9C4A}
+.c-c2.p-dark.idle{--acc:#46D27F}
+.c-c2 .top{display:flex;align-items:center}
+.c-c2 .sticker{font-size:11px;font-weight:700;color:#fff;background:var(--acc);padding:4px 13px;border-radius:7px;
+  transform:rotate(-1.5deg);box-shadow:0 3px 8px rgba(0,0,0,.2)}
+.c-c2 .tools{margin-left:auto;display:flex;gap:6px}
+.c-c2 .chipbtn{width:26px;height:26px;border-radius:8px;background:var(--card2);color:var(--sub);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 2px 5px rgba(0,0,0,.12)}
+.c-c2 .chipbtn .ic{width:13px;height:13px}
+.c-c2 .sub{border-radius:10px;background:var(--card2);box-shadow:0 2px 7px rgba(0,0,0,.1);padding:10px 12px}
+.c-c2 .sub.main{margin-top:9px}
+.c-c2 .num{font-size:27px;font-weight:800;color:var(--fg);line-height:1.1}
+.c-c2 .lbl{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:2px}
+.c-c2 .sub.cd{margin-top:9px;padding:9px 12px}
+.c-c2 .cdt{font-size:11px;color:var(--sub)}
+.c-c2 .cdt b{color:var(--acc);font-variant-numeric:tabular-nums}
+.c-c2 .track{margin-top:7px;height:4px;background:var(--line);border-radius:99px;overflow:hidden}
+.c-c2 .track i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:99px}
+.c-c2 .sub.foot{margin-top:9px;padding:6px 12px;font-size:9.5px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.c-c2 .sub.foot .r{color:var(--acc);font-size:8px}
+
+/* ============ C3 立体质感（高 250） ============ */
+.c-c3{height:250px;padding:14px 16px;
+  background-color:var(--bg0);
+  background-image:linear-gradient(180deg,var(--bg1),transparent 55%);
+  box-shadow:0 6px 0 var(--edge2),0 14px 28px rgba(15,23,42,.22)}
+.c-c3.p-light{--bg1:#FDFEFF;--bg0:#E9EEF5;--edge2:#C6CFDC;--hi:rgba(255,255,255,.85);--slotbg:rgba(31,45,66,.14)}.c-c3.p-light.peak{
+  --acc:#F08A2E;--acc2:#D96A08}
+.c-c3.p-light.idle{--acc:#2BB268;--acc2:#158747}
+.c-c3.p-dark{--bg1:#2F3746;--bg0:#20262F;--edge2:#10141A;--hi:rgba(255,255,255,.07);--slotbg:rgba(0,0,0,.42)}.c-c3.p-dark.peak{
+  --acc:#FF9C4A;--acc2:#E4720B}
+.c-c3.p-dark.idle{--acc:#46D27F;--acc2:#22A85E}
+.c-c3 .top{display:flex;align-items:center;gap:8px}
+.c-c3 .badge{font-size:11px;font-weight:700;color:#fff;padding:4px 13px;border-radius:7px;
+  background:linear-gradient(180deg,var(--acc),var(--acc2));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 2px 0 var(--acc2),0 4px 8px rgba(0,0,0,.18)}
+.c-c3 .inline-sub{margin-left:auto;font-size:9.5px;color:var(--muted)}
+.c-c3 .bal{margin-top:17px}
+.c-c3 .num{font-size:31px;font-weight:800;color:var(--fg);text-shadow:0 1px 0 var(--hi);line-height:1.1}
+.c-c3 .lbl{font-size:10px;color:var(--muted);letter-spacing:3px;margin-top:3px}
+.c-c3 .cd{margin-top:15px}
+.c-c3 .cdt{font-size:11.5px;color:var(--sub)}
+.c-c3 .cdt b{color:var(--acc);font-variant-numeric:tabular-nums}
+.c-c3 .slot{margin-top:8px;height:12px;border-radius:99px;background:var(--slotbg);overflow:hidden;
+  box-shadow:inset 0 2px 3px rgba(0,0,0,.32),inset 0 -1px 0 var(--hi)}
+.c-c3 .slot i{display:block;height:100%;width:var(--w);border-radius:99px;position:relative;
+  background:linear-gradient(180deg,var(--acc),var(--acc2))}
+.c-c3 .slot i::after{content:"";position:absolute;left:2px;right:2px;top:1px;height:3px;border-radius:99px;
+  background:rgba(255,255,255,.45)}
+.c-c3 .toolrow{margin-top:auto;display:flex;gap:10px}
+.c-c3 .btn3d{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--sub);
+  border-radius:9px;cursor:pointer;padding:6px 0;
+  background-image:linear-gradient(180deg,var(--bg1),transparent);
+  box-shadow:0 2px 0 var(--edge2),inset 0 1px 0 var(--hi)}
+.c-c3 .btn3d .ic{width:13px;height:13px}
+
+/* ============ D1 细线框（高 230） ============ */
+.c-d1{height:230px;padding:0 18px}
+.c-d1 .top{display:flex;justify-content:space-between;align-items:center;padding:13px 0 11px}
+.c-d1 .tag{font-size:11px;font-weight:600;color:var(--acc);border:1px solid var(--acc);padding:2px 11px;
+  border-radius:4px;letter-spacing:2px}
+.c-d1 .tools{display:flex;gap:13px;color:var(--sub)}
+.c-d1 .tools span{cursor:pointer;display:flex}
+.c-d1 .tools span:hover{color:var(--acc)}
+.c-d1 .tools .ic{width:16px;height:16px;stroke-width:1.6}
+.c-d1 .bal{border-top:1px solid var(--line);padding:13px 0 11px;display:flex;align-items:baseline;justify-content:space-between}
+.c-d1 .num{font-size:28px;font-weight:700;color:var(--fg);letter-spacing:.5px;line-height:1.1}
+.c-d1 .lbl{font-size:10px;color:var(--muted);letter-spacing:3px}
+.c-d1 .cd{border-top:1px solid var(--line);padding-top:11px}
+.c-d1 .cdt{font-size:11px;color:var(--sub)}
+.c-d1 .cdt b{color:var(--acc);font-weight:600;font-variant-numeric:tabular-nums}
+.c-d1 .hair{margin-top:9px;height:2px;background:var(--line);position:relative}
+.c-d1 .hair i{position:absolute;left:0;top:0;height:100%;width:var(--w);background:var(--acc)}
+.c-d1 .foot{margin-top:auto;border-top:1px solid var(--line);padding:9px 0 11px;font-size:9.5px;color:var(--muted)}
+
+/* ============ D2 文字主导（高 240） ============ */
+.c-d2{height:240px;padding:16px 18px}
+.c-d2 .top{display:flex;justify-content:space-between;align-items:baseline}
+.c-d2 .word{font-size:14px;font-weight:800;color:var(--fg);letter-spacing:1px;padding-bottom:3px;
+  border-bottom:3px solid var(--acc)}
+.c-d2 .inline{font-size:9.5px;color:var(--muted)}
+.c-d2 .stage{margin-top:22px}
+.c-d2 .num{font-size:36px;font-weight:900;color:var(--fg);letter-spacing:-.5px;line-height:1}
+.c-d2 .lbl{font-size:10px;color:var(--muted);letter-spacing:6px;margin-top:6px}
+.c-d2 .cdt{margin-top:15px;font-size:11.5px;color:var(--sub)}
+.c-d2 .cdt b{color:var(--acc);font-weight:700;font-variant-numeric:tabular-nums}
+.c-d2 .baseline{margin-top:auto;height:2px;background:var(--line);position:relative}
+.c-d2 .baseline i{position:absolute;left:0;top:0;height:100%;width:var(--w);background:var(--acc)}
+.c-d2 .links{margin-top:11px;display:flex;gap:18px;font-size:10.5px;color:var(--sub)}
+.c-d2 .links span{display:inline-flex;align-items:center;gap:5px;cursor:pointer;
+  text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}
+.c-d2 .links span:hover{color:var(--acc);text-decoration-color:var(--acc)}
+.c-d2 .links .ic{width:12px;height:12px}
+
+/* ============ D3 符号极简（高 250） ============ */
+.c-d3{height:250px;padding:16px 20px;text-align:center}
+.c-d3 .top{display:flex;justify-content:space-between;align-items:center}
+.c-d3 .dotmsg{display:flex;align-items:center;gap:8px}
+.c-d3 .dot{width:9px;height:9px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.c-d3 .mtag{font-size:9px;letter-spacing:3px;color:var(--acc);font-weight:600}
+.c-d3 .tools{display:flex;gap:13px;opacity:.5;transition:opacity .2s;color:var(--sub)}
+.c-d3 .tools:hover{opacity:.9}
+.c-d3 .tools span{cursor:pointer;display:flex}
+.c-d3 .tools .ic{width:15px;height:15px;stroke-width:1.5}
+.c-d3 .stage{margin-top:26px}
+.c-d3 .num{font-size:46px;font-weight:200;color:var(--fg);line-height:1;letter-spacing:1px}
+.c-d3 .num .cur{font-size:16px;font-weight:400;color:var(--sub);vertical-align:15px;margin-right:5px}
+.c-d3 .lbl{font-size:9px;letter-spacing:4px;color:var(--muted);margin-top:9px}
+.c-d3 .cdt{margin-top:19px;font-size:10.5px;color:var(--sub)}
+.c-d3 .cdt b{color:var(--acc);font-weight:500;font-variant-numeric:tabular-nums}
+.c-d3 .thin{margin:11px auto 0;width:200px;height:1.5px;background:var(--line);position:relative}
+.c-d3 .thin i{position:absolute;left:0;top:0;height:100%;width:var(--w);background:var(--acc)}
+.c-d3 .foot{margin-top:auto;font-size:9px;letter-spacing:2px;color:var(--muted)}
+
+/* ============ 对比矩阵 / 选型说明 ============ */
+.matsec{margin-top:48px}
+.matrix{width:100%;border-collapse:collapse;margin-top:14px;background:#fff;border-radius:12px;overflow:hidden;
+  box-shadow:0 2px 10px rgba(15,23,42,.08);font-size:12px}
+.matrix th,.matrix td{border:1px solid #E8ECF1;padding:8px 10px;text-align:left;vertical-align:middle}
+.matrix thead th{background:#F1F4F8;font-size:11.5px;color:#334155;white-space:nowrap}
+.matrix td.id{font-weight:800;background:#F8FAFC;letter-spacing:.5px;white-space:nowrap}
+.matrix tr.gsep td,.matrix tr.gsep td.id{border-top:2px solid #C8D2DE}
+.howto{margin-top:28px;background:#fff;border-radius:12px;padding:18px 22px;max-width:1400px;
+  box-shadow:0 2px 10px rgba(15,23,42,.08)}
+.howto ul{margin:10px 0 0 20px;font-size:13px;color:var(--ink2)}
+.howto li{margin-top:6px}
+.howto code{background:#F1F4F8;border-radius:5px;padding:1px 7px;font-family:var(--mono);font-size:12px}
+footer{margin-top:32px;font-size:11.5px;color:var(--ink3)}
+</style>
+</head>
+<body>
+<!-- 内联 SVG 图标库（无外部依赖） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3.2"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="23 4 23 10 17 10"/>
+    <polyline points="1 20 1 14 7 14"/>
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+  </symbol>
+</svg>
+
+<div class="wrap">
+<header class="hero">
+  <h1>DeepSeek 余额峰谷监控小组件 — 界面候选项预览</h1>
+  <p class="meta">12 个候选项 = 4 种风格（现代简约 / 科技深色 / 卡片拟物 / 极简线条）× 每种 3 个候选；每个候选并排展示 4 种组合：<b>高峰·浅色 / 高峰·深色 / 空闲·浅色 / 空闲·深色</b>。</p>
+  <p class="meta">面板规格：宽 <b>320px</b>、高 <b>220–260px</b>（各候选标注具体值）、无边框、圆角、轻微阴影。每个面板均含全部 7 个元素：状态标签、总余额、倒计时文字、进度条、上次刷新时间、设置齿轮、刷新按钮。</p>
+  <p class="meta">如何查看：直接用浏览器打开本文件即可（file://，纯静态 HTML+CSS，无任何外部依赖，离线可看）。本页数据均为<b>模拟示例</b>（¥ 110.00 等），非真实账户数据。</p>
+  <div class="legend">
+    <span><span class="dot o"></span>高峰 = 橙色语义（与托盘图标一致）</span>
+    <span><span class="dot g"></span>空闲 = 绿色语义（与托盘图标一致）</span>
+    <span>高峰示例进度 43% · 空闲示例进度 83%（两状态取值不同以便区分）</span>
+  </div>
+  <nav class="toc">
+    <a href="#style-a">风格 A · 现代简约</a>
+    <a href="#style-b">风格 B · 科技深色</a>
+    <a href="#style-c">风格 C · 卡片拟物</a>
+    <a href="#style-d">风格 D · 极简线条</a>
+    <a href="#matrix">底部：对比矩阵</a>
+    <a href="#howto">选型说明</a>
+  </nav>
+</header>
+
+<main>
+<!-- ================= 风格 A ================= -->
+<section class="sg" id="style-a">
+  <h2>风格 A · 现代简约</h2>
+  <p class="intro">以清晰层级与适度留白为目标，圆角与阴影克制，白/浅灰底为主，状态色只用于标签与进度点缀——是"最不容易出错"的默认方向。组内三候选在布局、密度、余额排版、标签样式、进度条形态、设置入口与刷新时间位置上形成明显组合差异。</p>
+
+  <article class="cand" id="cand-a1">
+    <div class="cand-h"><span class="cnum">A1</span><h3>单列紧凑一屏直读</h3><span class="hspan">320 × 230</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-a1">
+          <div class="top">
+            <span class="pill">高峰时段</span>
+            <span class="tools"><span class="ibtn" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="ibtn" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="track"><i style="--w:43%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-a1">
+          <div class="top">
+            <span class="pill">高峰时段</span>
+            <span class="tools"><span class="ibtn" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="ibtn" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="track"><i style="--w:43%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-a1">
+          <div class="top">
+            <span class="pill">空闲时段</span>
+            <span class="tools"><span class="ibtn" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="ibtn" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="track"><i style="--w:83%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-a1">
+          <div class="top">
+            <span class="pill">空闲时段</span>
+            <span class="tools"><span class="ibtn" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="ibtn" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="track"><i style="--w:83%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>单列自上而下、一屏直读的紧凑布局（信息密度中等）；余额左对齐常规大号；状态为胶囊标签；进度为横条细条；设置/刷新并排右上角圆形小按钮；刷新时间落底部极小灰字。</p>
+  </article>
+
+  <article class="cand" id="cand-a2">
+    <div class="cand-h"><span class="cnum">A2</span><h3>大余额居中 · 大量留白</h3><span class="hspan">320 × 250</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-a2">
+          <div class="top">
+            <span class="pill">高峰时段</span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage">
+            <div class="num">¥ 110.00</div>
+            <div class="lbl">总余额</div>
+            <div class="cdt">距空闲时段还有 <b>01:23:45</b></div>
+            <div class="track"><i style="--w:43%"></i></div>
+          </div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-a2">
+          <div class="top">
+            <span class="pill">高峰时段</span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage">
+            <div class="num">¥ 110.00</div>
+            <div class="lbl">总余额</div>
+            <div class="cdt">距空闲时段还有 <b>01:23:45</b></div>
+            <div class="track"><i style="--w:43%"></i></div>
+          </div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-a2">
+          <div class="top">
+            <span class="pill">空闲时段</span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage">
+            <div class="num">¥ 110.00</div>
+            <div class="lbl">总余额</div>
+            <div class="cdt">距高峰时段还有 <b>07:32:10</b></div>
+            <div class="track"><i style="--w:83%"></i></div>
+          </div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-a2">
+          <div class="top">
+            <span class="pill">空闲时段</span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage">
+            <div class="num">¥ 110.00</div>
+            <div class="lbl">总余额</div>
+            <div class="cdt">距高峰时段还有 <b>07:32:10</b></div>
+            <div class="track"><i style="--w:83%"></i></div>
+          </div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>居中舞台式布局、低密度大留白，次级信息全部低对比小字弱化；余额居中超大号（40px）；状态为顶部细描边胶囊（透明底）；进度为 180px 极细横条；设置/刷新右上角低对比淡显（悬停加深）；刷新时间底部居中。</p>
+  </article>
+
+  <article class="cand" id="cand-a3">
+    <div class="cand-h"><span class="cnum">A3</span><h3>状态与倒计时双列网格</h3><span class="hspan">320 × 240</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-a3">
+          <div class="grid2">
+            <div class="cell status"><span class="tag">高峰时段</span><span class="en">PEAK</span></div>
+            <div class="cell cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="ticks"><i style="--w:43%"></i></div></div>
+          </div>
+          <div class="bal"><span class="cur">¥</span><span class="num">110.00</span><span class="lbl">总余额</span></div>
+          <div class="toolrow">
+            <span class="mini">上次刷新 今天 14:32</span>
+            <span class="sq" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span>
+            <span class="sq" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span>
+          </div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-a3">
+          <div class="grid2">
+            <div class="cell status"><span class="tag">高峰时段</span><span class="en">PEAK</span></div>
+            <div class="cell cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="ticks"><i style="--w:43%"></i></div></div>
+          </div>
+          <div class="bal"><span class="cur">¥</span><span class="num">110.00</span><span class="lbl">总余额</span></div>
+          <div class="toolrow">
+            <span class="mini">上次刷新 今天 14:32</span>
+            <span class="sq" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span>
+            <span class="sq" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span>
+          </div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-a3">
+          <div class="grid2">
+            <div class="cell status"><span class="tag">空闲时段</span><span class="en">IDLE</span></div>
+            <div class="cell cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="ticks"><i style="--w:83%"></i></div></div>
+          </div>
+          <div class="bal"><span class="cur">¥</span><span class="num">110.00</span><span class="lbl">总余额</span></div>
+          <div class="toolrow">
+            <span class="mini">上次刷新 今天 14:32</span>
+            <span class="sq" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span>
+            <span class="sq" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span>
+          </div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-a3">
+          <div class="grid2">
+            <div class="cell status"><span class="tag">空闲时段</span><span class="en">IDLE</span></div>
+            <div class="cell cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="ticks"><i style="--w:83%"></i></div></div>
+          </div>
+          <div class="bal"><span class="cur">¥</span><span class="num">110.00</span><span class="lbl">总余额</span></div>
+          <div class="toolrow">
+            <span class="mini">上次刷新 今天 14:32</span>
+            <span class="sq" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span>
+            <span class="sq" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span>
+          </div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>双列并排网格（状态块 + 倒计时块）+ 底部工具行，信息分区密度最高；余额左对齐并带 ¥ 货币角标；状态为左色条角标色块（附 PEAK/IDLE 英文角标）；进度为分段刻度条；设置/刷新收入底部工具行，刷新时间与工具行内联。</p>
+  </article>
+</section>
+
+<!-- ================= 风格 B ================= -->
+<section class="sg" id="style-b">
+  <h2>风格 B · 科技深色</h2>
+  <p class="intro">以深色为签名，强调等宽数字与技术感装饰：B1 偏 HUD 仪表（网格 + 扫描线）、B2 偏霓虹辉光、B3 偏终端命令行。三者均按同一设计语言提供浅色变体（HUD 浅蓝图纸、霓虹柔光、纸带终端）。</p>
+
+  <article class="cand" id="cand-b1">
+    <div class="cand-h"><span class="cnum">B1</span><h3>HUD 仪表 · 网格扫描线</h3><span class="hspan">320 × 240</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-b1">
+          <div class="top">
+            <span class="tag">高峰时段<i>PEAK</i></span>
+            <span class="tools"><span class="sq" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="sq" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">TOTAL BALANCE · 总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="hud"><i style="--w:43%"></i></div></div>
+          <div class="bar"><span>上次刷新 今天 14:32</span><span>进度 43%</span></div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-b1">
+          <div class="top">
+            <span class="tag">高峰时段<i>PEAK</i></span>
+            <span class="tools"><span class="sq" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="sq" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">TOTAL BALANCE · 总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="hud"><i style="--w:43%"></i></div></div>
+          <div class="bar"><span>上次刷新 今天 14:32</span><span>进度 43%</span></div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-b1">
+          <div class="top">
+            <span class="tag">空闲时段<i>IDLE</i></span>
+            <span class="tools"><span class="sq" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="sq" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">TOTAL BALANCE · 总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="hud"><i style="--w:83%"></i></div></div>
+          <div class="bar"><span>上次刷新 今天 14:32</span><span>进度 83%</span></div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-b1">
+          <div class="top">
+            <span class="tag">空闲时段<i>IDLE</i></span>
+            <span class="tools"><span class="sq" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="sq" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">TOTAL BALANCE · 总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="hud"><i style="--w:83%"></i></div></div>
+          <div class="bar"><span>上次刷新 今天 14:32</span><span>进度 83%</span></div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>深蓝黑网格底 + 扫描线、数字全部等宽字体；余额左对齐等宽大号（双语小标签）；状态为方角描边标签带英文角标（PEAK/IDLE）；进度为分段刻度 HUD 条；底部状态栏承载刷新时间与进度百分比；设置/刷新为右上角方角小按钮。</p>
+  </article>
+
+  <article class="cand" id="cand-b2">
+    <div class="cand-h"><span class="cnum">B2</span><h3>霓虹描边 · 辉光</h3><span class="hspan">320 × 250</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-b2">
+          <div class="top">
+            <span class="pill">高峰时段</span>
+            <span class="tools"><span class="ring" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="ring" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="neon"><i style="--w:43%"></i></div></div>
+          <div class="corner">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-b2">
+          <div class="top">
+            <span class="pill">高峰时段</span>
+            <span class="tools"><span class="ring" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="ring" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="neon"><i style="--w:43%"></i></div></div>
+          <div class="corner">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-b2">
+          <div class="top">
+            <span class="pill">空闲时段</span>
+            <span class="tools"><span class="ring" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="ring" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="neon"><i style="--w:83%"></i></div></div>
+          <div class="corner">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-b2">
+          <div class="top">
+            <span class="pill">空闲时段</span>
+            <span class="tools"><span class="ring" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="ring" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="neon"><i style="--w:83%"></i></div></div>
+          <div class="corner">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>近黑紫底的霓虹辉光语言（浅色变体为柔光纸面）；余额居中辉光大号；状态为辉光胶囊标签；进度为发光横条（box-shadow 辉光）；设置/刷新为右上角描边圆钮（带微光）；刷新时间为右下角标时间；信息密度最低、舞台感最强。</p>
+  </article>
+
+  <article class="cand" id="cand-b3">
+    <div class="cand-h"><span class="cnum">B3</span><h3>终端命令行风</h3><span class="hspan">320 × 230</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-b3">
+          <div class="ln"><span class="u">user@deepseek</span>:<span class="p">~</span>$ widget --status</div>
+          <div class="ln">▸ 状态: <span class="tag">高峰时段</span></div>
+          <div class="ln">▸ 总余额 <span class="num">¥ 110.00</span></div>
+          <div class="ln">▸ 距空闲时段还有 <span class="t">01:23:45</span></div>
+          <div class="pbar"><i style="--w:43%"></i></div>
+          <div class="ln cm"># 上次刷新 今天 14:32</div>
+          <div class="ln cmdrow"><span class="chip"><svg class="ic"><use href="#i-gear"/></svg>设置</span><span class="chip"><svg class="ic"><use href="#i-refresh"/></svg>刷新</span><span class="cursor"></span></div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-b3">
+          <div class="ln"><span class="u">user@deepseek</span>:<span class="p">~</span>$ widget --status</div>
+          <div class="ln">▸ 状态: <span class="tag">高峰时段</span></div>
+          <div class="ln">▸ 总余额 <span class="num">¥ 110.00</span></div>
+          <div class="ln">▸ 距空闲时段还有 <span class="t">01:23:45</span></div>
+          <div class="pbar"><i style="--w:43%"></i></div>
+          <div class="ln cm"># 上次刷新 今天 14:32</div>
+          <div class="ln cmdrow"><span class="chip"><svg class="ic"><use href="#i-gear"/></svg>设置</span><span class="chip"><svg class="ic"><use href="#i-refresh"/></svg>刷新</span><span class="cursor"></span></div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-b3">
+          <div class="ln"><span class="u">user@deepseek</span>:<span class="p">~</span>$ widget --status</div>
+          <div class="ln">▸ 状态: <span class="tag">空闲时段</span></div>
+          <div class="ln">▸ 总余额 <span class="num">¥ 110.00</span></div>
+          <div class="ln">▸ 距高峰时段还有 <span class="t">07:32:10</span></div>
+          <div class="pbar"><i style="--w:83%"></i></div>
+          <div class="ln cm"># 上次刷新 今天 14:32</div>
+          <div class="ln cmdrow"><span class="chip"><svg class="ic"><use href="#i-gear"/></svg>设置</span><span class="chip"><svg class="ic"><use href="#i-refresh"/></svg>刷新</span><span class="cursor"></span></div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-b3">
+          <div class="ln"><span class="u">user@deepseek</span>:<span class="p">~</span>$ widget --status</div>
+          <div class="ln">▸ 状态: <span class="tag">空闲时段</span></div>
+          <div class="ln">▸ 总余额 <span class="num">¥ 110.00</span></div>
+          <div class="ln">▸ 距高峰时段还有 <span class="t">07:32:10</span></div>
+          <div class="pbar"><i style="--w:83%"></i></div>
+          <div class="ln cm"># 上次刷新 今天 14:32</div>
+          <div class="ln cmdrow"><span class="chip"><svg class="ic"><use href="#i-gear"/></svg>设置</span><span class="chip"><svg class="ic"><use href="#i-refresh"/></svg>刷新</span><span class="cursor"></span></div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>纯黑终端底 + 全等宽字体 + 提示符/▸ 前缀（浅色变体为米灰"纸带"底）；余额为行内等宽大号；状态为方括号描边文字（[高峰时段]，括号弱化）；进度为分段块状条（ASCII 块感）；设置/刷新为底部命令行按钮 + 闪烁光标；刷新时间为行内注释（# 上次刷新…）。</p>
+  </article>
+</section>
+
+<!-- ================= 风格 C ================= -->
+<section class="sg" id="style-c">
+  <h2>风格 C · 卡片拟物</h2>
+  <p class="intro">以材质与光影为核心：C1 软 UI 双向阴影（Neumorphism）、C2 纸片分层卡片、C3 渐变高光立体感。视觉温度更高，适合喜欢"有质感、有厚度"的用户。</p>
+
+  <article class="cand" id="cand-c1">
+    <div class="cand-h"><span class="cnum">C1</span><h3>软 UI · Neumorphism 双向阴影</h3><span class="hspan">320 × 250</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-c1">
+          <div class="top">
+            <span class="pill">高峰时段</span>
+            <span class="tools"><span class="knob" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="knob" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="groove"><i style="--w:43%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-c1">
+          <div class="top">
+            <span class="pill">高峰时段</span>
+            <span class="tools"><span class="knob" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="knob" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="groove"><i style="--w:43%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-c1">
+          <div class="top">
+            <span class="pill">空闲时段</span>
+            <span class="tools"><span class="knob" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="knob" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="groove"><i style="--w:83%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-c1">
+          <div class="top">
+            <span class="pill">空闲时段</span>
+            <span class="tools"><span class="knob" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="knob" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="groove"><i style="--w:83%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>面板与控件全部用双向阴影塑形（凸起按钮 / 凹陷胶囊与凹槽进度）；余额居中带浮雕感；状态为凹陷胶囊标签；进度为内嵌凹槽条；设置/刷新为右上角凸起圆形旋钮；刷新时间底部居中灰字；信息密度中等。</p>
+  </article>
+
+  <article class="cand" id="cand-c2">
+    <div class="cand-h"><span class="cnum">C2</span><h3>分层纸片卡片</h3><span class="hspan">320 × 240</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-c2">
+          <div class="top">
+            <span class="sticker">高峰时段</span>
+            <span class="tools"><span class="chipbtn" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="chipbtn" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="sub main"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="sub cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="track"><i style="--w:43%"></i></div></div>
+          <div class="sub foot"><span>上次刷新 今天 14:32</span><span class="r">●</span></div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-c2">
+          <div class="top">
+            <span class="sticker">高峰时段</span>
+            <span class="tools"><span class="chipbtn" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="chipbtn" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="sub main"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="sub cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="track"><i style="--w:43%"></i></div></div>
+          <div class="sub foot"><span>上次刷新 今天 14:32</span><span class="r">●</span></div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-c2">
+          <div class="top">
+            <span class="sticker">空闲时段</span>
+            <span class="tools"><span class="chipbtn" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="chipbtn" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="sub main"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="sub cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="track"><i style="--w:83%"></i></div></div>
+          <div class="sub foot"><span>上次刷新 今天 14:32</span><span class="r">●</span></div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-c2">
+          <div class="top">
+            <span class="sticker">空闲时段</span>
+            <span class="tools"><span class="chipbtn" title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span class="chipbtn" title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="sub main"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="sub cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="track"><i style="--w:83%"></i></div></div>
+          <div class="sub foot"><span>上次刷新 今天 14:32</span><span class="r">●</span></div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>米白纸感底 + 主卡片内再分三张子卡片（余额 / 倒计时+进度 / 刷新条），层次最多、信息密度最高；余额在子卡内左对齐；状态为微倾斜贴纸标签（实色 + 投影）；进度为子卡内细条；设置/刷新为右上角小方钮；刷新时间独占底部子卡条。</p>
+  </article>
+
+  <article class="cand" id="cand-c3">
+    <div class="cand-h"><span class="cnum">C3</span><h3>立体质感 · 渐变高光厚度</h3><span class="hspan">320 × 250</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-c3">
+          <div class="top"><span class="badge">高峰时段</span><span class="inline-sub">上次刷新 今天 14:32</span></div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="slot"><i style="--w:43%"></i></div></div>
+          <div class="toolrow">
+            <span class="btn3d"><svg class="ic"><use href="#i-gear"/></svg>设置</span>
+            <span class="btn3d"><svg class="ic"><use href="#i-refresh"/></svg>刷新</span>
+          </div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-c3">
+          <div class="top"><span class="badge">高峰时段</span><span class="inline-sub">上次刷新 今天 14:32</span></div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="slot"><i style="--w:43%"></i></div></div>
+          <div class="toolrow">
+            <span class="btn3d"><svg class="ic"><use href="#i-gear"/></svg>设置</span>
+            <span class="btn3d"><svg class="ic"><use href="#i-refresh"/></svg>刷新</span>
+          </div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-c3">
+          <div class="top"><span class="badge">空闲时段</span><span class="inline-sub">上次刷新 今天 14:32</span></div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="slot"><i style="--w:83%"></i></div></div>
+          <div class="toolrow">
+            <span class="btn3d"><svg class="ic"><use href="#i-gear"/></svg>设置</span>
+            <span class="btn3d"><svg class="ic"><use href="#i-refresh"/></svg>刷新</span>
+          </div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-c3">
+          <div class="top"><span class="badge">空闲时段</span><span class="inline-sub">上次刷新 今天 14:32</span></div>
+          <div class="bal"><div class="num">¥ 110.00</div><div class="lbl">总余额</div></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="slot"><i style="--w:83%"></i></div></div>
+          <div class="toolrow">
+            <span class="btn3d"><svg class="ic"><use href="#i-gear"/></svg>设置</span>
+            <span class="btn3d"><svg class="ic"><use href="#i-refresh"/></svg>刷新</span>
+          </div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>渐变底 + 顶部高光 + 底边厚度（面板有"立起来"的体积感）；状态为立体徽章（语义色渐变 + 高光 + 底边）；余额左对齐大号带高光；进度为凹槽 + 光泽条（高光带）；设置/刷新为底部立体按钮行（图标 + 文字）；刷新时间为顶部行内联小字。</p>
+  </article>
+</section>
+
+<!-- ================= 风格 D ================= -->
+<section class="sg" id="style-d">
+  <h2>风格 D · 极简线条</h2>
+  <p class="intro">去装饰，靠字重、留白与细线建立层级，近于排版设计：D1 细线分区、D2 纯排版文字主导、D3 符号极简。最轻量克制，信息噪音最低。</p>
+
+  <article class="cand" id="cand-d1">
+    <div class="cand-h"><span class="cnum">D1</span><h3>细线框 · hairline 分区</h3><span class="hspan">320 × 230</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-d1">
+          <div class="top">
+            <span class="tag">高峰时段</span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><span class="num">¥ 110.00</span><span class="lbl">总余额</span></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="hair"><i style="--w:43%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-d1">
+          <div class="top">
+            <span class="tag">高峰时段</span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><span class="num">¥ 110.00</span><span class="lbl">总余额</span></div>
+          <div class="cd"><div class="cdt">距空闲时段还有 <b>01:23:45</b></div><div class="hair"><i style="--w:43%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-d1">
+          <div class="top">
+            <span class="tag">空闲时段</span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><span class="num">¥ 110.00</span><span class="lbl">总余额</span></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="hair"><i style="--w:83%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-d1">
+          <div class="top">
+            <span class="tag">空闲时段</span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="bal"><span class="num">¥ 110.00</span><span class="lbl">总余额</span></div>
+          <div class="cd"><div class="cdt">距高峰时段还有 <b>07:32:10</b></div><div class="hair"><i style="--w:83%"></i></div></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>区块间只用 hairline 细分隔线、无内部卡片容器；余额左对齐常规大号；状态为描边文字小方框（透明底细边框）；进度为 2px 细线；设置/刷新为右上角裸线性图标（细描边）；刷新时间底部左对齐极小灰字。</p>
+  </article>
+
+  <article class="cand" id="cand-d2">
+    <div class="cand-h"><span class="cnum">D2</span><h3>文字主导 · 纯排版</h3><span class="hspan">320 × 240</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-d2">
+          <div class="top"><span class="word">高峰时段</span><span class="inline">上次刷新 今天 14:32</span></div>
+          <div class="stage">
+            <div class="num">¥ 110.00</div>
+            <div class="lbl">总余额</div>
+            <div class="cdt">距空闲时段还有 <b>01:23:45</b></div>
+          </div>
+          <div class="baseline"><i style="--w:43%"></i></div>
+          <div class="links"><span><svg class="ic"><use href="#i-gear"/></svg>设置</span><span><svg class="ic"><use href="#i-refresh"/></svg>刷新</span></div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-d2">
+          <div class="top"><span class="word">高峰时段</span><span class="inline">上次刷新 今天 14:32</span></div>
+          <div class="stage">
+            <div class="num">¥ 110.00</div>
+            <div class="lbl">总余额</div>
+            <div class="cdt">距空闲时段还有 <b>01:23:45</b></div>
+          </div>
+          <div class="baseline"><i style="--w:43%"></i></div>
+          <div class="links"><span><svg class="ic"><use href="#i-gear"/></svg>设置</span><span><svg class="ic"><use href="#i-refresh"/></svg>刷新</span></div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-d2">
+          <div class="top"><span class="word">空闲时段</span><span class="inline">上次刷新 今天 14:32</span></div>
+          <div class="stage">
+            <div class="num">¥ 110.00</div>
+            <div class="lbl">总余额</div>
+            <div class="cdt">距高峰时段还有 <b>07:32:10</b></div>
+          </div>
+          <div class="baseline"><i style="--w:83%"></i></div>
+          <div class="links"><span><svg class="ic"><use href="#i-gear"/></svg>设置</span><span><svg class="ic"><use href="#i-refresh"/></svg>刷新</span></div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-d2">
+          <div class="top"><span class="word">空闲时段</span><span class="inline">上次刷新 今天 14:32</span></div>
+          <div class="stage">
+            <div class="num">¥ 110.00</div>
+            <div class="lbl">总余额</div>
+            <div class="cdt">距高峰时段还有 <b>07:32:10</b></div>
+          </div>
+          <div class="baseline"><i style="--w:83%"></i></div>
+          <div class="links"><span><svg class="ic"><use href="#i-gear"/></svg>设置</span><span><svg class="ic"><use href="#i-refresh"/></svg>刷新</span></div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>面板内无任何色块与容器，纯排版表达；状态为粗体词 + 粗下划线（文字本身即标签）；余额 36px 特粗紧字距；进度为通栏底线（贯穿面板宽度）；设置/刷新为底部下划线文字链接（小图标随行）；刷新时间顶部行内联。</p>
+  </article>
+
+  <article class="cand" id="cand-d3">
+    <div class="cand-h"><span class="cnum">D3</span><h3>符号极简 · 超大数字</h3><span class="hspan">320 × 250</span></div>
+    <div class="shots">
+      <div class="shot">
+        <div class="panel p-light peak c-d3">
+          <div class="top">
+            <span class="dotmsg"><span class="dot"></span><span class="mtag">高峰时段</span></span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num"><span class="cur">¥</span>110.00</div><div class="lbl">总余额</div></div>
+          <div class="cdt">距空闲时段还有 <b>01:23:45</b></div>
+          <div class="thin"><i style="--w:43%"></i></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark peak c-d3">
+          <div class="top">
+            <span class="dotmsg"><span class="dot"></span><span class="mtag">高峰时段</span></span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num"><span class="cur">¥</span>110.00</div><div class="lbl">总余额</div></div>
+          <div class="cdt">距空闲时段还有 <b>01:23:45</b></div>
+          <div class="thin"><i style="--w:43%"></i></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">高峰 · 深色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-light idle c-d3">
+          <div class="top">
+            <span class="dotmsg"><span class="dot"></span><span class="mtag">空闲时段</span></span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num"><span class="cur">¥</span>110.00</div><div class="lbl">总余额</div></div>
+          <div class="cdt">距高峰时段还有 <b>07:32:10</b></div>
+          <div class="thin"><i style="--w:83%"></i></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 浅色</div>
+      </div>
+      <div class="shot">
+        <div class="panel p-dark idle c-d3">
+          <div class="top">
+            <span class="dotmsg"><span class="dot"></span><span class="mtag">空闲时段</span></span>
+            <span class="tools"><span title="设置"><svg class="ic"><use href="#i-gear"/></svg></span><span title="刷新"><svg class="ic"><use href="#i-refresh"/></svg></span></span>
+          </div>
+          <div class="stage"><div class="num"><span class="cur">¥</span>110.00</div><div class="lbl">总余额</div></div>
+          <div class="cdt">距高峰时段还有 <b>07:32:10</b></div>
+          <div class="thin"><i style="--w:83%"></i></div>
+          <div class="foot">上次刷新 今天 14:32</div>
+        </div>
+        <div class="cap">空闲 · 深色</div>
+      </div>
+    </div>
+    <p class="notes"><b>差异要点：</b>语义圆点符号 + 极小宽字距标签表达状态（无标签框）；余额居中细字重超大号（46px，¥ 作上标角标）；进度为 200px 单色细线（1.5px，无轨道）；设置/刷新右上角淡显（悬停加深）；刷新时间底部居中大字距；信息密度全组最低。</p>
+  </article>
+</section>
+
+<!-- ================= 对比矩阵 ================= -->
+<section class="matsec" id="matrix">
+  <h2>对比矩阵（12 候选 × 8 维度）</h2>
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>候选</th>
+        <th>布局结构</th>
+        <th>信息密度</th>
+        <th>配色与主题气质</th>
+        <th>余额展示方式</th>
+        <th>峰谷状态标签样式</th>
+        <th>倒计时与进度条样式</th>
+        <th>设置入口位置</th>
+        <th>刷新时间展示方式</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="id">A1</td><td>单列直读</td><td>中 · 紧凑</td><td>纯白克制</td><td>左对齐常规大号</td><td>胶囊标签</td><td>横条细进度</td><td>右上角齿轮+刷新</td><td>底部极小灰字</td>
+      </tr>
+      <tr>
+        <td class="id">A2</td><td>居中舞台式</td><td>低 · 大留白</td><td>浅底柔和</td><td>居中超大号</td><td>细描边胶囊</td><td>极细横条</td><td>右上角淡显（悬停加深）</td><td>底部居中极小字</td>
+      </tr>
+      <tr>
+        <td class="id">A3</td><td>双列网格+底栏</td><td>高 · 分区</td><td>白底浅灰分区</td><td>左对齐+货币角标</td><td>左色条角标色块</td><td>分段刻度条</td><td>底部工具行</td><td>工具行内联</td>
+      </tr>
+      <tr class="gsep">
+        <td class="id">B1</td><td>HUD 网格底</td><td>中高</td><td>深蓝黑 HUD（含浅色图纸变体）</td><td>左对齐等宽</td><td>方角描边+英文角标</td><td>分段刻度 HUD 条</td><td>右上角方钮</td><td>底部状态栏+进度%</td>
+      </tr>
+      <tr>
+        <td class="id">B2</td><td>居中舞台式</td><td>低</td><td>近黑霓虹（含浅色柔光变体）</td><td>居中辉光大号</td><td>辉光胶囊</td><td>发光横条</td><td>右上角描边圆钮</td><td>右下角标时间</td>
+      </tr>
+      <tr>
+        <td class="id">B3</td><td>终端行式</td><td>高 · 行式</td><td>纯黑终端（含浅色纸带变体）</td><td>行内等宽大号</td><td>方括号描边文字</td><td>分段块状条</td><td>底部命令行按钮</td><td>行内注释（#）</td>
+      </tr>
+      <tr class="gsep">
+        <td class="id">C1</td><td>单列软UI</td><td>中</td><td>灰底双向阴影</td><td>居中浮雕</td><td>凹陷胶囊</td><td>内嵌凹槽条</td><td>右上凸起圆钮</td><td>底部居中灰字</td>
+      </tr>
+      <tr>
+        <td class="id">C2</td><td>分层子卡片</td><td>高 · 分层</td><td>米白纸片</td><td>子卡内左对齐</td><td>微倾贴纸标签</td><td>子卡内细条</td><td>右上角小方钮</td><td>底部子卡条</td>
+      </tr>
+      <tr>
+        <td class="id">C3</td><td>单列立体</td><td>中</td><td>渐变高光+厚度</td><td>左对齐高光大号</td><td>立体徽章</td><td>凹槽光泽条</td><td>底部立体按钮行</td><td>顶部行内联</td>
+      </tr>
+      <tr class="gsep">
+        <td class="id">D1</td><td>细线分区</td><td>中低</td><td>纯白黑线</td><td>左对齐常规</td><td>描边文字框</td><td>2px 细线</td><td>右上裸线性图标</td><td>底部左对齐</td>
+      </tr>
+      <tr>
+        <td class="id">D2</td><td>纯排版</td><td>低</td><td>黑白排版</td><td>特大粗体紧字距</td><td>粗体+粗下划线</td><td>通栏底线</td><td>底部文字链接</td><td>顶部行内联</td>
+      </tr>
+      <tr>
+        <td class="id">D3</td><td>符号舞台</td><td>极低</td><td>单色+语义点缀</td><td>居中细字重超大（¥上标）</td><td>圆点+极小标签</td><td>单色细线（无轨道）</td><td>右上淡显图标</td><td>底部居中大字距</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ================= 选型说明 ================= -->
+<section class="howto" id="howto">
+  <h2>选型说明</h2>
+  <ul>
+    <li>直接回复<b>单个编号</b>（如 <code>B2</code>）即完成选型；</li>
+    <li>或回复<b>融合式意见</b>（如"以 A2 为主，融合 B1 的等宽数字与底部状态栏"）；</li>
+    <li>也可按维度混搭（如"布局用 A1，状态标签用 C2 贴纸式，进度条用 B1 分段刻度"）；</li>
+    <li>选型结果将记录为正式实现的 UI 基线（阶段 0.5 硬门控：选定前不开始正式实现）。</li>
+  </ul>
+</section>
+</main>
+
+<footer>阶段 0.5 产出物 · 纯静态 HTML+CSS 单文件 · 无外部依赖（图标为 inline SVG，字体为系统字体栈）· 可在无网络环境以 file:// 直接打开 · 本页所有数据均为模拟示例，非真实账户数据</footer>
+</div>
+</body>
+</html>
