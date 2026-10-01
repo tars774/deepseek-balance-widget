@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>DeepSeekBalanceWidget</RootNamespace>
+    <AssemblyName>DeepSeekBalanceWidget</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- 阶段 4 验收：0 警告 0 错误（警告一律按错误处理） -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- WPF 不支持裁剪/AOT（final-technical-plan §2；探针 A §6 显式关闭口径） -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishAot>false</PublishAot>
+    <Version>1.0.0</Version>
+    <Product>DeepSeek 余额峰谷监控小组件</Product>
+    <SatelliteResourceLanguages>zh-CN</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 托盘库版本锁定 2.3.2（禁 2.4.x：无 net8.0 目标）；NuGet 直接依赖仅此一项 -->
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 窗口图标资源（ApplicationIcon 仅嵌入 exe 图标；pack URI 加载需另行声明为 Resource） -->
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+</Project>
