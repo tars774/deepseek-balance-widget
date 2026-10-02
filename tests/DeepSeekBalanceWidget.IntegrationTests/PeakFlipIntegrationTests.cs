@@ -15,7 +15,8 @@ namespace DeepSeekBalanceWidget.IntegrationTests;
 /// 阶段 5 测试清单第 4 项（真实切换点不可达 → Fake 时钟集成测试）：
 /// FakeTimeProvider + 真实 Scheduler + 真实 PeakEngine + 真实 TrayController + PanelViewModel，
 /// 跨北京 12:00:00 逐秒步进——断言 StateChanged 恰 1 次、托盘图标变体峰→谷、
-/// 胶囊翻转、倒计时目标 12:00→14:00、进度条区间重置。同时是阶段 6 CI 的种子。
+/// 胶囊翻转、倒计时目标 12:00→14:00、进度条翻转沿归零→回满（需求变更 2026-10-02「剩余口径」）。
+/// 同时是阶段 6 CI 的种子。
 /// </summary>
 public sealed class PeakFlipIntegrationTests : IDisposable
 {
@@ -119,9 +120,10 @@ public sealed class PeakFlipIntegrationTests : IDisposable
             Assert.Equal("01:59:59", snaps[noon + 1].CountdownText);
             Assert.StartsWith("00:00:0", snaps[noon - 1].CountdownText);
 
-            // ---- 进度条区间重置：翻转前 ≈100%（上午高峰末尾），翻转后 ≈0%（午休空闲开头）----
-            Assert.True(snaps[noon - 1].ProgressPercent > 99.0, $"翻转前进度 {snaps[noon - 1].ProgressPercent:F2}%");
-            Assert.True(snaps[noon].ProgressPercent < 1.0, $"翻转后进度 {snaps[noon].ProgressPercent:F2}%");
+            // ---- 进度条（需求变更 2026-10-02「剩余口径」）：绿条 = 剩余÷总长——翻转前剩余→0（<1%）、
+            //      翻转后新时段立即回满（>99%），与倒计时同源严格同步（方向与旧「已过比例」口径相反）----
+            Assert.True(snaps[noon - 1].ProgressPercent < 1.0, $"翻转前进度 {snaps[noon - 1].ProgressPercent:F2}%");
+            Assert.True(snaps[noon].ProgressPercent > 99.0, $"翻转后进度 {snaps[noon].ProgressPercent:F2}%");
 
             // ---- 托盘（真实组件）：CurrentState 峰→谷，tooltip 重建为"空闲时段"（A-1 NIM 重建路径）----
             _ui.Invoke(() =>
@@ -133,13 +135,14 @@ public sealed class PeakFlipIntegrationTests : IDisposable
                 Assert.Contains("空闲时段", taskbar.ToolTipText);
             });
 
-            // ---- 面板 ViewModel：胶囊翻转 + 倒计时前缀改指高峰（14:00）+ 进度条区间重置 ----
-            // （循环末 tick = 12:00:03，vm 呈现该 tick 直刷值：距 14:00 还剩 01:59:57）
+            // ---- 面板 ViewModel：胶囊翻转 + 倒计时前缀改指高峰（14:00）+ 绿条随剩余占比回满 ----
+            // （循环末 tick = 12:00:03，vm 呈现该 tick 直刷值：距 14:00 还剩 01:59:57；
+            //   需求变更 2026-10-02：绿条 = 剩余占比 ≈ 7197s/7200s，灰条 = 已过占比）
             Assert.Equal("空闲时段", vm.PillText);
             Assert.Equal("距高峰时段还有 ", vm.CountdownPrefix);
             Assert.Equal("01:59:57", vm.CountdownText);
-            Assert.True(vm.ProgressFilled.Value < 0.01, $"面板进度条填充 {vm.ProgressFilled.Value:F4}");
-            Assert.True(vm.ProgressRemaining.Value > 0.99);
+            Assert.True(vm.ProgressFilled.Value > 0.99, $"面板进度条填充 {vm.ProgressFilled.Value:F4}");
+            Assert.True(vm.ProgressRemaining.Value < 0.01);
         }
         finally
         {

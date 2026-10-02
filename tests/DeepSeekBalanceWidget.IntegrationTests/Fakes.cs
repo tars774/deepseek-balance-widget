@@ -22,11 +22,33 @@ public sealed class FakeHolidaySource : IHolidaySource
         => Task.FromResult(ApiResult.Ok(_data));
 }
 
+/// <summary>按日期可编程的节假日源替身（需求变更 2026-10-02 进度口径用例：连续节假日/工作日混合日历）。</summary>
+public sealed class LambdaHolidaySource : IHolidaySource
+{
+    private readonly Func<DateOnly, HolidayData> _dataFor;
+    public string Name { get; }
+
+    public LambdaHolidaySource(string name, Func<DateOnly, HolidayData> dataFor)
+    {
+        Name = name;
+        _dataFor = dataFor;
+    }
+
+    public Task<ApiResult> FetchAsync(DateOnly date, CancellationToken ct = default)
+        => Task.FromResult(ApiResult.Ok(_dataFor(date)));
+}
+
 /// <summary>余额服务替身：计数调用、可配置返回结果（默认成功 ¥110.00）。</summary>
 public sealed class FakeBalanceService : IBalanceService
 {
     private readonly BalanceResult _result;
     public int CallCount { get; private set; }
+
+    /// <summary>
+    /// 可编程结果提供者（需求变更 2026-10-02 快轮询退避用例：逐次给失败/成功序列）；
+    /// null 时返回构造时给定的固定结果。
+    /// </summary>
+    public Func<BalanceResult>? Provider { get; set; }
 
     public FakeBalanceService(BalanceResult? result = null)
         => _result = result ?? new BalanceResult(BalanceStatus.Success, 110.00m, "CNY", IsAvailable: true, Note: null);
@@ -34,7 +56,7 @@ public sealed class FakeBalanceService : IBalanceService
     public Task<BalanceResult> RefreshAsync()
     {
         CallCount++;
-        return Task.FromResult(_result);
+        return Task.FromResult(Provider?.Invoke() ?? _result);
     }
 }
 

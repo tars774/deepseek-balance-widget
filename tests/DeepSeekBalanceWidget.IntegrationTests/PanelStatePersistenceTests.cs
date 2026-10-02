@@ -80,6 +80,39 @@ public sealed class PanelStatePersistenceTests : IDisposable
         Assert.True(s.PinTopmost);
     }
 
+    // ---------------- 流光效果持久化（需求变更 2026-10-02） ----------------
+
+    [Fact]
+    public void RoundTrip_Flow_Fields()
+    {
+        var store = new LocalSettingsStore(_dir);
+        var s = new AppSettings
+        {
+            FlowEnabled = false,
+            FlowSpeed = FlowSpeed.Visible,
+            FlowIntensity = FlowIntensity.Visible,
+        };
+        store.Save(s);
+
+        var loaded = store.Load();
+        Assert.False(loaded.FlowEnabled);
+        Assert.Equal(FlowSpeed.Visible, loaded.FlowSpeed);
+        Assert.Equal(FlowIntensity.Visible, loaded.FlowIntensity);
+    }
+
+    [Fact]
+    public void Legacy_File_Without_Flow_Fields_Loads_With_Flow_Defaults()
+    {
+        Directory.CreateDirectory(_dir);
+        // 旧形态 settings.json（无流光字段）→ 默认：开 / 克制 / 极淡（向后兼容）
+        File.WriteAllText(Path.Combine(_dir, "settings.json"),
+            """{"Theme":"System","RefreshIntervalMinutes":30}""");
+        var s = new LocalSettingsStore(_dir).Load();
+        Assert.True(s.FlowEnabled);
+        Assert.Equal(FlowSpeed.Restrained, s.FlowSpeed);
+        Assert.Equal(FlowIntensity.Faint, s.FlowIntensity);
+    }
+
     [Fact]
     public void PanelViewModel_SetPinned_Raises_IsPinned()
     {
