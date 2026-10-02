@@ -5,9 +5,10 @@ public enum PeakState { Idle, Peak }
 public sealed record WorkPeriod(TimeSpan Start, TimeSpan End, PeakState State, string Name);
 
 /// <summary>
-/// 时段定义（北京时间，探针 C 口径 / D-09 进度区间）：
+/// 时段定义（北京时间，探针 C 口径）：
 /// 工作日: 00:00-09:00 清晨空闲 | 09:00-12:00 上午高峰 | 12:00-14:00 午休空闲 | 14:00-18:00 下午高峰 | 18:00-24:00 晚间空闲
-/// 全天空闲日(周六/周日/法定节假日): 00:00-24:00 全天空闲，进度 = 当天已过比例。
+/// 全天空闲日(周六/周日/法定节假日): 00:00-24:00 全天空闲。
+/// 进度口径见 <see cref="ProgressCalculator"/>（需求变更 2026-10-02：剩余÷总长，与倒计时同源）。
 /// </summary>
 public static class PeakPeriods
 {
@@ -52,23 +53,34 @@ public static class Format
 }
 
 /// <summary>
-/// 进度区间（D-09）：当前时段已过比例 0-100%。全天空闲日 = 00:00-24:00 当天已过比例；
-/// 工作日清晨/午休/晚间空闲按其实际区间计（晚间空闲不跨天累计）。
+/// 进度口径（需求变更 2026-10-02，取代旧 D-09「当前时段已过比例」——旧口径已废弃删除，避免两套口径并存）：
+/// 绿条占比 = 剩余 ÷ 总长，钳制 [0,1]。剩余 = 下一切换点 − 当前北京墙钟（与倒计时 D-08 同源同值，
+/// 条与数字严格同步：数字归零瞬间绿条恰好归零，翻入新时段立即回满）；
+/// 总长 = 下一切换点 − 当前连续时段段起点（起点 = 上一状态翻转时刻，连续多日全天空闲取上一工作日 18:00，
+/// 由 PeakEngine.PreviousSwitch 与 NextSwitch 对称地计算）。
+/// nextSwitch 为 null（无有效数据）→ 恒满绿静止，与「--:--:--」同语义。
 /// </summary>
 public static class ProgressCalculator
 {
-    public static double ProgressPercent(DateTime beijingWall, bool allDayIdle)
+    public static double ProgressPercent(DateTime beijingWall, DateTime? nextSwitch, DateTime segmentStart)
     {
-        var p = PeakPeriods.GetPeriod(beijingWall.TimeOfDay, allDayIdle);
-        var date = DateOnly.FromDateTime(beijingWall);
-        var start = date.ToDateTime(TimeOnly.MinValue) + p.Start;
-        var end = date.ToDateTime(TimeOnly.MinValue) + p.End;
-        var frac = (beijingWall - start).TotalMinutes / (end - start).TotalMinutes;
+        if (nextSwitch is null) return 100.0;
+        var totalMinutes = (nextSwitch.Value - segmentStart).TotalMinutes;
+        if (totalMinutes <= 0)
+        {
+            // 退化区间防御（段起点 ≥ 切换点，正常时序不会出现）：无 NaN/∞，按墙钟是否已到切换点取满/空
+            return beijingWall < nextSwitch.Value ? 100.0 : 0.0;
+        }
+        var frac = (nextSwitch.Value - beijingWall).TotalMinutes / totalMinutes;
         return Math.Clamp(frac, 0, 1) * 100.0;
     }
 }
 
-/// <summary>心跳直刷的峰谷快照（每 tick 重算；倒计时/进度为绝对差值，永不累加）。</summary>
+/// <summary>
+/// 心跳直刷的峰谷快照（每 tick 重算；倒计时/进度为绝对差值，永不累加）。
+/// ProgressPercent（需求变更 2026-10-02）= 剩余÷总长×100：倒计时数字每减 1 秒绿条同步缩一点，
+/// 语义为「剩余占比」——与 PanelViewModel 的 ProgressFilled（绿=剩余）/ProgressRemaining（灰=已过）对应。
+/// </summary>
 public sealed record WidgetSnapshot(
     DateTime BeijingWall, DateOnly BeijingDate, bool AllDayIdle, PeakState State, string PeriodName,
     bool Degraded, string? DataSource, DateTime? NextSwitch, string CountdownText, double ProgressPercent);

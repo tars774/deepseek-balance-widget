@@ -41,9 +41,15 @@ public sealed class PanelViewModel : INotifyPropertyChanged
 
     public string CountdownText { get; private set; } = "--:--:--";
 
-    /// <summary>A1 §2 进度条：4px 细横条，填充 = 当前时段已过比例（星号比例两列实现）。</summary>
-    public GridLength ProgressFilled { get; private set; } = new(0, GridUnitType.Star);
-    public GridLength ProgressRemaining { get; private set; } = new(1, GridUnitType.Star);
+    /// <summary>
+    /// A1 §2 进度条：4px 细横条，星号比例两列实现（绿左灰右）。
+    /// 语义（需求变更 2026-10-02，由旧「已过/剩余」反转为「剩余/已过」）：
+    /// ProgressFilled = 绿条（左列）= 剩余占比（= 距下一切换点剩余 ÷ 段总长，与倒计时同源同值——
+    /// 数字每减 1 秒绿条同步缩一点，归零瞬间条归零、翻入新时段立即回满）；
+    /// ProgressRemaining = 灰条（右列）= 已过占比。NextSwitch 为 null 时保持满绿。
+    /// </summary>
+    public GridLength ProgressFilled { get; private set; } = new(1, GridUnitType.Star);
+    public GridLength ProgressRemaining { get; private set; } = new(0, GridUnitType.Star);
 
     // ---------------- 余额区（D-07 四态 + A1 约定 1/2） ----------------
 
@@ -111,6 +117,8 @@ public sealed class PanelViewModel : INotifyPropertyChanged
             CountdownText = snap.CountdownText;
             Raise(nameof(CountdownText));
         }
+        // 需求变更 2026-10-02：snap.ProgressPercent 已是「剩余占比」——绿条（Filled）直取 frac，
+        // 灰条（Remaining）= 1 − frac（已过占比）；代码结构与星宽两列绑定保持不变，仅口径反转
         double frac = Math.Clamp(snap.ProgressPercent / 100.0, 0, 1);
         ProgressFilled = new GridLength(frac, GridUnitType.Star);
         ProgressRemaining = new GridLength(1.0 - frac, GridUnitType.Star);
