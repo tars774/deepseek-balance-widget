@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="设置 · DeepSeek 余额小组件"
-        Width="480" Height="505"
+        Width="480" Height="620"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -10,10 +10,13 @@
         FontFamily="Segoe UI, Microsoft YaHei"
         TextOptions.TextRenderingMode="ClearType">
     <!--
-      设置窗口（4 项必选：API Key / 后台刷新间隔 / 开机自启 / 主题；+ D-19 可选手动余额）。
+      设置窗口（4 项必选：API Key / 后台（隐藏时）刷新周期 / 开机自启 / 主题；+ D-19 可选手动余额）。
       主题下拉即时应用并持久化；API Key 保存/清除即写 Credential Manager；
       保存按钮校验并持久化间隔/自启/手动余额（间隔经 Scheduler 即时生效）。
       v1.1：新增「钉住时置顶」开关（§5，即时生效并持久化，默认开）。
+      需求变更 2026-10-02：新增「流光效果」一节（开关 + 节奏/强度两组单选，即时生效并持久化，
+      默认开/克制/极淡；开关不放托盘菜单）；刷新间隔文案改「后台（隐藏时）刷新周期」语义
+      （面板显示期间固定每 5 秒快轮询，与本设置无关，见 Scheduler §4.6）。
     -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="22,18,22,16">
@@ -33,14 +36,14 @@
                 <Button Content="清除 Key" Width="90" Height="28" Margin="8,0,0,0" Click="ClearKey_Click"/>
             </StackPanel>
 
-            <!-- 2. 后台刷新间隔 -->
-            <TextBlock Text="后台刷新间隔（分钟，5–1440）" FontSize="12" FontWeight="SemiBold" Margin="0,20,0,6"
+            <!-- 2. 后台（隐藏时）刷新周期（需求变更 2026-10-02 文案：显示期固定 5s 快轮询与本设置无关） -->
+            <TextBlock Text="后台（隐藏时）刷新周期（分钟，5–1440）" FontSize="12" FontWeight="SemiBold" Margin="0,20,0,6"
                        Foreground="{DynamicResource Brush.Fg}"/>
             <StackPanel Orientation="Horizontal">
                 <TextBox x:Name="IntervalBox" Width="80" Height="28" Padding="6,4,6,3" FontSize="12"
                          VerticalContentAlignment="Center"
                          Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Line}"/>
-                <TextBlock Text="默认 30 分钟；保存后即时生效（失败时按 1/5/15 分钟退避）"
+                <TextBlock Text="默认 30 分钟；面板隐藏时按本周期刷新（失败按 1/5/15 分钟退避）。面板显示期间固定每 5 秒快刷（失败按 5→10→20→40→60 秒退避）"
                            FontSize="11" Margin="10,0,0,0" VerticalAlignment="Center"
                            Foreground="{DynamicResource Brush.Muted}"/>
             </StackPanel>
@@ -62,14 +65,45 @@
                 <ComboBoxItem Content="深色"/>
             </ComboBox>
 
-            <!-- 5. v1.1：钉住时置顶（即时生效并持久化；默认开） -->
+            <!-- 5. 流光效果（需求变更 2026-10-02：开关 + 节奏/强度两组单选，即时生效并持久化） -->
+            <TextBlock Text="流光效果" FontSize="12" FontWeight="SemiBold" Margin="0,20,0,6"
+                       Foreground="{DynamicResource Brush.Fg}"/>
+            <CheckBox x:Name="FlowEnabledBox" FontSize="12" Foreground="{DynamicResource Brush.Sub}"
+                      Content="绿条流光：淡白高光带沿进度条从左向右周期扫过（关闭时绿条纯色静止）"
+                      Checked="FlowEnabled_Changed" Unchecked="FlowEnabled_Changed"/>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <TextBlock Text="节奏" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{DynamicResource Brush.Sub}"/>
+                <RadioButton x:Name="FlowSpeedRestrainedRadio" GroupName="FlowSpeed" Content="克制（默认）"
+                             FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"
+                             Foreground="{DynamicResource Brush.Sub}"
+                             Checked="FlowSpeed_Changed"/>
+                <RadioButton x:Name="FlowSpeedVisibleRadio" GroupName="FlowSpeed" Content="明显"
+                             FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"
+                             Foreground="{DynamicResource Brush.Sub}"
+                             Checked="FlowSpeed_Changed"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <TextBlock Text="强度" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{DynamicResource Brush.Sub}"/>
+                <RadioButton x:Name="FlowIntensityFaintRadio" GroupName="FlowIntensity" Content="极淡（默认）"
+                             FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"
+                             Foreground="{DynamicResource Brush.Sub}"
+                             Checked="FlowIntensity_Changed"/>
+                <RadioButton x:Name="FlowIntensityVisibleRadio" GroupName="FlowIntensity" Content="可见"
+                             FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"
+                             Foreground="{DynamicResource Brush.Sub}"
+                             Checked="FlowIntensity_Changed"/>
+            </StackPanel>
+
+            <!-- 6. v1.1：钉住时置顶（即时生效并持久化；默认开） -->
             <TextBlock Text="钉住" FontSize="12" FontWeight="SemiBold" Margin="0,20,0,6"
                        Foreground="{DynamicResource Brush.Fg}"/>
             <CheckBox x:Name="PinTopmostBox" FontSize="12" Foreground="{DynamicResource Brush.Sub}"
                       Content="钉住时置顶：钉住面板后窗口保持在最前（取消后可被其他窗口遮挡）"
                       Checked="PinTopmost_Changed" Unchecked="PinTopmost_Changed"/>
 
-            <!-- 6. D-19 可选：手动余额模式 -->
+            <!-- 7. D-19 可选：手动余额模式 -->
             <TextBlock Text="手动余额模式（可选）" FontSize="12" FontWeight="SemiBold" Margin="0,20,0,6"
                        Foreground="{DynamicResource Brush.Fg}"/>
             <CheckBox x:Name="ManualBox" FontSize="12" Foreground="{DynamicResource Brush.Sub}"

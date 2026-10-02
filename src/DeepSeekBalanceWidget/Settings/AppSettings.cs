@@ -8,6 +8,26 @@ public enum ThemeMode
     Dark,
 }
 
+/// <summary>流光扫过节奏（需求变更 2026-10-02）。</summary>
+public enum FlowSpeed
+{
+    /// <summary>克制（默认）：一次扫过约 3.5s + 停顿约 1.5s，循环约 5s。</summary>
+    Restrained,
+
+    /// <summary>明显：约 2s 一次、无停顿、无缝循环。</summary>
+    Visible,
+}
+
+/// <summary>流光高光强度（需求变更 2026-10-02）。</summary>
+public enum FlowIntensity
+{
+    /// <summary>极淡（默认）：白色低透明度渐变，叠加 Brush.Acc 上仅隐约可见。</summary>
+    Faint,
+
+    /// <summary>可见：一眼可辨但不刺眼。</summary>
+    Visible,
+}
+
 /// <summary>
 /// 非敏感设置（D-20）：存 %APPDATA%\DeepSeekBalanceWidget\settings.json（System.Text.Json 读写）。
 /// 仅 API Key 进 Credential Manager，绝不入此文件。
@@ -40,4 +60,15 @@ public sealed class AppSettings
 
     /// <summary>钉住时置顶（默认开）：开=钉住时 Topmost；关=钉住时普通层级（可被遮挡）。</summary>
     public bool PinTopmost { get; set; } = true;
+
+    // ---------------- 流光效果（需求变更 2026-10-02） ----------------
+
+    /// <summary>绿条流光扫过动画开关（默认开；关闭时绿条纯色静止）。</summary>
+    public bool FlowEnabled { get; set; } = true;
+
+    /// <summary>流光节奏（默认克制 Restrained）：克制 = 3.5s 扫过 + 1.5s 停顿循环；明显 = 约 2s 无缝循环。</summary>
+    public FlowSpeed FlowSpeed { get; set; } = FlowSpeed.Restrained;
+
+    /// <summary>流光强度（默认极淡 Faint）：极淡 = 白色低透明度仅隐约可见；可见 = 一眼可辨但不刺眼。</summary>
+    public FlowIntensity FlowIntensity { get; set; } = FlowIntensity.Faint;
 }

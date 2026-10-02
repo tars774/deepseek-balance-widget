@@ -7,8 +7,9 @@ using DeepSeekBalanceWidget.Infrastructure;
 namespace DeepSeekBalanceWidget.Settings;
 
 /// <summary>
-/// 设置窗口：API Key（PasswordBox → Credential Manager，清除 = 删除凭据）、后台刷新间隔
+/// 设置窗口：API Key（PasswordBox → Credential Manager，清除 = 删除凭据）、后台（隐藏时）刷新周期
 /// （5–1440 校验 + 即时生效）、开机自启（HKCU Run）、主题三模式（即时应用并持久化）、
+/// 流光效果（需求变更 2026-10-02：开关 + 节奏/强度，即时生效并持久化）、
 /// D-19 可选手动余额、v1.1 钉住时置顶（即时生效并持久化）。
 /// API Key 不回显（仅显示配置状态），不落 settings.json。
 /// </summary>
@@ -21,13 +22,16 @@ public partial class SettingsWindow : Window
     private readonly Action<int> _intervalChanged;   // 即时生效间隔
     private readonly Action _keyChanged;        // Key 变更后立即刷新余额
     private readonly Action<bool> _pinTopmostChanged; // v1.1：钉住时置顶即时生效
+    private readonly Action<bool, FlowSpeed, FlowIntensity> _flowChanged; // 需求变更 2026-10-02：流光档位即时生效
 
     private bool _suppressThemeEvent;
     private bool _suppressPinTopmostEvent;
+    private bool _suppressFlowEvent;
 
     public SettingsWindow(AppSettings settings, LocalSettingsStore store, ICredentialStore credentials,
         Action themeChanged, Action<int> intervalChanged, Action keyChanged,
-        Action<bool>? pinTopmostChanged = null)
+        Action<bool>? pinTopmostChanged = null,
+        Action<bool, FlowSpeed, FlowIntensity>? flowChanged = null)
     {
         InitializeComponent();
         try
@@ -44,6 +48,7 @@ public partial class SettingsWindow : Window
         _intervalChanged = intervalChanged;
         _keyChanged = keyChanged;
         _pinTopmostChanged = pinTopmostChanged ?? (_ => { });
+        _flowChanged = flowChanged ?? ((_, _, _) => { });
 
         IntervalBox.Text = settings.RefreshIntervalMinutes.ToString();
         AutostartBox.IsChecked = new AutostartRegistrar().IsEnabled();
@@ -60,6 +65,14 @@ public partial class SettingsWindow : Window
             _ => 0,
         };
         _suppressThemeEvent = false;
+        // 需求变更 2026-10-02：流光档位初始化（抑制事件，仅回显当前配置）
+        _suppressFlowEvent = true;
+        FlowEnabledBox.IsChecked = settings.FlowEnabled;
+        FlowSpeedRestrainedRadio.IsChecked = settings.FlowSpeed == FlowSpeed.Restrained;
+        FlowSpeedVisibleRadio.IsChecked = settings.FlowSpeed == FlowSpeed.Visible;
+        FlowIntensityFaintRadio.IsChecked = settings.FlowIntensity == FlowIntensity.Faint;
+        FlowIntensityVisibleRadio.IsChecked = settings.FlowIntensity == FlowIntensity.Visible;
+        _suppressFlowEvent = false;
 
         RefreshKeyState();
         Owner = Application.Current?.Windows.OfType<Window>().FirstOrDefault(w => w.IsVisible)
@@ -149,6 +162,35 @@ public partial class SettingsWindow : Window
         _pinTopmostChanged(_settings.PinTopmost);
     }
 
+    // ---------- 需求变更 2026-10-02：流光效果（即时应用并持久化） ----------
+
+    private void FlowEnabled_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressFlowEvent) return;
+        _settings.FlowEnabled = FlowEnabledBox.IsChecked == true;
+        _store.Save(_settings);
+        AppLog.Info($"设置：流光效果={(_settings.FlowEnabled ? "开" : "关")}（即时生效）");
+        _flowChanged(_settings.FlowEnabled, _settings.FlowSpeed, _settings.FlowIntensity);
+    }
+
+    private void FlowSpeed_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressFlowEvent) return;
+        _settings.FlowSpeed = FlowSpeedVisibleRadio.IsChecked == true ? FlowSpeed.Visible : FlowSpeed.Restrained;
+        _store.Save(_settings);
+        AppLog.Info($"设置：流光节奏={_settings.FlowSpeed}（即时生效）");
+        _flowChanged(_settings.FlowEnabled, _settings.FlowSpeed, _settings.FlowIntensity);
+    }
+
+    private void FlowIntensity_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressFlowEvent) return;
+        _settings.FlowIntensity = FlowIntensityVisibleRadio.IsChecked == true ? FlowIntensity.Visible : FlowIntensity.Faint;
+        _store.Save(_settings);
+        AppLog.Info($"设置：流光强度={_settings.FlowIntensity}（即时生效）");
+        _flowChanged(_settings.FlowEnabled, _settings.FlowSpeed, _settings.FlowIntensity);
+    }
+
     // ---------- 保存（间隔 / 自启 / 手动余额） ----------
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -156,7 +198,7 @@ public partial class SettingsWindow : Window
         // 间隔校验：5–1440（SchedulerOptions.ClampBalanceInterval 同口径）
         if (!int.TryParse(IntervalBox.Text.Trim(), out var minutes) || minutes is < 5 or > 1440)
         {
-            StatusText.Text = "刷新间隔无效：请输入 5–1440 的整数分钟";
+            StatusText.Text = "刷新周期无效：请输入 5–1440 的整数分钟";
             StatusText.Foreground = (Brush)FindResource("Brush.Sub");
             return;
         }

@@ -9,6 +9,8 @@ namespace DeepSeekBalanceWidget.Settings;
 /// settings.json 读写（D-20：非敏感配置存 %APPDATA%，System.Text.Json）。
 /// 文件损坏/缺失时回退默认值并记日志；保存为整文件覆盖（先建目录）。
 /// 目录可注入（v1.1：集成测试用临时目录做读写往返，不触碰真实 %APPDATA%）；缺省即真实目录。
+/// 旧配置文件缺字段时取属性初值默认值（含需求变更 2026-10-02 的流光三字段 FlowEnabled/FlowSpeed/
+/// FlowIntensity），向后兼容；枚举经 JsonStringEnumConverter 以字符串形态持久化。
 /// </summary>
 public sealed class LocalSettingsStore
 {
