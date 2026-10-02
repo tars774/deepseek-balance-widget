@@ -65,7 +65,7 @@ git commit -m "fix(scheduling): 节假日工作日启动时托盘/胶囊强调�
 
 # ── 阶段 5：测试与发布 ──────────────────────────────────────────
 git add tests/
-git commit -m "test: 集成测试 43 用例（真实组件 + 假时钟：翻转沿/ICO 像素/退避序列/停靠吸附/FB-1 回归）"
+git commit -m "test: 集成测试 56 用例（真实组件 + 假时钟：翻转沿/ICO 像素/退避序列/停靠吸附/FB-1 回归/流光/显示期快轮询）"
 
 git add docs/test-report.md docs/release-notes.md docs/deployment.md
 git commit -m "docs: 测试报告/发布说明/部署文档（阶段 5 三件套 + v1.1 增补）"
@@ -105,12 +105,14 @@ git branch -M main
 | --- | --- | --- |
 | `v0.1.0-probe` | 五探针全部通过（可行性实证） | 无独立代码产物，仅为流程存证（可选） |
 | `v0.5.0-mvp` | 阶段 5 完成时的 MVP（12 项验收通过，SHA-256 `0A2A2FAF…99E359` 产物） | 历史存证（产物已被 v1.1 重发布覆盖，建议不附附件） |
-| `v1.0.0` | 当前版本（MVP + v1.1 右缘停靠/拖动/钉住 + FB-1 修复；SHA-256 `07E14926EB5302664AE1A7729A83ED69DAFEF0A8877CC2C52AB48316F7343312`，以 [release-notes.md §4](release-notes.md) 为准） | **首个公开 Release**，附 exe 与 SHA-256 |
+| `v1.0.0` | MVP + v1.1 右缘停靠/拖动/钉住 + FB-1 修复（SHA-256 `07E14926EB5302664AE1A7729A83ED69DAFEF0A8877CC2C52AB48316F7343312`，已被 v1.2.0 取代） | **首个公开 Release**，附 exe 与 SHA-256 |
+| `v1.2.0` | 当前发布候选（= v1.0.0 候选 + 需求变更 2026-10-02：进度条剩余口径/绿条流光/面板显示期余额 5s 快轮询；SHA-256 `EDB92E788CC136847FA5C4E005A9D2B5CD2AAADEC9CD94696D099F91ECA4B5E1`，以 [release-notes.md §4](release-notes.md) 为准） | 附 exe 与 SHA-256 |
 
 ```bash
 git tag v0.1.0-probe  <探针结论提交的 hash>      # 可选
 git tag v0.5.0-mvp   <阶段 5 三件套提交的 hash>   # 可选
 git tag -a v1.0.0 -m "v1.0.0：MVP + v1.1 右缘停靠/拖动/钉住"
+git tag -a v1.2.0 -m "v1.2.0：+ 需求变更 2026-10-02（进度条剩余口径/绿条流光/显示期快轮询）"
 ```
 
 ## 4. 关联远程并推送

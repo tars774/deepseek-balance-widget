@@ -20,7 +20,7 @@
 dotnet build src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj -c Release
 → 0 警告 0 错误
 dotnet test tests/DeepSeekBalanceWidget.IntegrationTests/DeepSeekBalanceWidget.IntegrationTests.csproj -c Release
-→ 43/43 通过（FB-1 修复后，2026-10-01；v1.1 基线 41/41、阶段 5 基线 9/9）
+→ 56/56 通过（v1.2，2026-10-02；FB-1 修复后基线 43/43、v1.1 基线 41/41、阶段 5 基线 9/9）
 ```
 
 ## 2. 单文件发布（完整步骤与参数解释）
@@ -55,12 +55,13 @@ dotnet publish src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj `
 ### 2.1 产物核验
 
 1. **严格单文件**：`release/publish/` 内有且仅有 `DeepSeekBalanceWidget.exe`（无 pdb/deps.json/runtimeconfig.json/原生 DLL）。
-2. **体积**：66,202,308 B（63.13 MiB）。参照系：探针 D 同参数发布探针 A 工程为 71,910,187 B（68.58 MiB）——差异来自被测负载不同（正式版代码精简），属合理偏差；**正式版口径以 66,202,308 B 为准**，未来版本变化应解释原因。（v1.1 重发布：新增面板停靠/拖动/钉住功能后体积与 v0.5.0-mvp 持平；FB-1 修复版（2026-10-01）体积亦持平，仍为 66,202,308 B。）
+2. **体积**：66,206,404 B（63.14 MiB；v1.2，2026-10-02）。参照系：探针 D 同参数发布探针 A 工程为 71,910,187 B（68.58 MiB）——差异来自被测负载不同（正式版代码精简），属合理偏差；**正式版口径以 66,206,404 B 为准**，未来版本变化应解释原因。（v1.1 重发布：新增面板停靠/拖动/钉住功能后体积与 v0.5.0-mvp 持平；FB-1 修复版（2026-10-01）体积亦持平，仍为 66,202,308 B；v1.2 新增流光扫过动画与显示期快轮询逻辑——单文件内嵌运行时主体不变，体积微增 4,096 字节属正常。）
 3. **SHA-256**：
 
 ```powershell
 Get-FileHash .\release\publish\DeepSeekBalanceWidget.exe -Algorithm SHA256
-# 07E14926EB5302664AE1A7729A83ED69DAFEF0A8877CC2C52AB48316F7343312（FB-1 修复版，2026-10-01 重发布）
+# EDB92E788CC136847FA5C4E005A9D2B5CD2AAADEC9CD94696D099F91ECA4B5E1（v1.2.0，2026-10-02 发布）
+# 历史值 07E14926EB5302664AE1A7729A83ED69DAFEF0A8877CC2C52AB48316F7343312（FB-1 修复版，2026-10-01）已被 v1.2 取代
 # 历史值 5DDF2EBE3651E5E111C4B4FAB08913BA0BA3E51099842AB4E5444440FE628B10（v1.1，2026-09-30）已被取代
 # 历史值 0A2A2FAFBCB97ED94E4AF6F75DC411340825C6D7DED56FFD7ED62C5A8B99E359（v0.5.0-mvp）已作废
 ```
@@ -109,7 +110,7 @@ Start-Process .\DeepSeekBalanceWidget.exe
 | 位置 | 内容 | 用途/处置 |
 | --- | --- | --- |
 | `%APPDATA%\DeepSeekBalanceWidget\logs\app-YYYYMMDD.log` | 运行日志（UTF-8，按日滚动，全量脱敏） | 故障排查入口；可随时删除 |
-| `%APPDATA%\DeepSeekBalanceWidget\settings.json` | 主题/刷新间隔/手动余额设置 | 删除即恢复默认（跟随系统主题、30 分钟间隔） |
+| `%APPDATA%\DeepSeekBalanceWidget\settings.json` | 主题/刷新间隔/手动余额设置；v1.2 新增流光效果（FlowEnabled/FlowSpeed/FlowIntensity） | 删除即恢复默认（跟随系统主题、30 分钟间隔） |
 | `%APPDATA%\DeepSeekBalanceWidget\icons\` | 运行时托盘图标（4 枚 ICO） | 运行中生成、退出自动删除；无需手动处理 |
 | Windows 凭据管理器 `DeepSeekBalanceWidget_ApiKey` | API Key（Generic，仅本机可读） | 见 5.2 删除 |
 | `%TEMP%\.net\DeepSeekBalanceWidget\` | 单文件首启解压的原生库（~7.8MB） | .NET 标准缓存，删除无副作用 |

@@ -17,7 +17,7 @@
 | --- | --- | --- |
 | 1 | 1 秒心跳（DispatcherTimer vs 专用线程由阶段 3 定夺） | §2.1 选型论证、§2.2 tick 管线 |
 | 2 | 状态重算每秒、事件仅翻转沿 | §2.2 流程①–④、§3 事件契约 |
-| 3 | 余额刷新三触发源（定时 30min 可配置 / 开面板即刷 / 手动按钮） | §4 |
+| 3 | 余额刷新三触发源（定时 30min 可配置 / 开面板即刷 / 手动按钮）+ 显示期快轮询 5s（需求变更 2026-10-02） | §4、§4.6 |
 | 4 | 跨天检测（UTC 16:00） | §5 |
 | 5 | 退避复用 PeakService 1/5/15 全局门 + 成功清零即刷 | §6 |
 | 6 | 巡查日志 0 Key / 0 Authorization | §8 |
@@ -36,7 +36,7 @@ Scheduler 是全应用的**时间基准与状态驱动源**：以 1 秒心跳驱
 2. **倒计时永远按绝对时间差计算**，不做任何累加——单 tick 晚到不影响显示正确性；
 3. **事件按翻转沿发**——托盘/tooltip 只在状态翻转时重建，倒计时/进度每 tick 直刷（面板可见时）；
 4. **一切时间读取经 ITimeProvider**——生产用真实时钟，测试用可步进/可加速假时钟；
-5. **全部间隔参数可注入**——心跳、余额间隔、去抖窗、退避序列均出自 `SchedulerOptions`。
+5. **全部间隔参数可注入**——心跳、余额间隔、显示期快轮询间隔/退避、去抖窗、退避序列均出自 `SchedulerOptions`。
 
 ---
 
@@ -65,12 +65,13 @@ OnTick():
   ① 读时钟      t = ITimeProvider.UtcNow（绝对时刻，永不累加）
   ② 漂移记账    记录与上一 tick 的实际间隔、与绝对对齐槽位的迟到量（§2.3）；
                 异常（间隔越界 / 迟到 >100ms）按 §8 记日志
-  ③ 峰谷快照    同步部分：北京墙上时间 → 时段判定 → 倒计时(精确差值,HH>24,D-08) → 进度(D-09)
+  ③ 峰谷快照    同步部分：北京墙上时间 → 时段判定 → 倒计时(精确差值,HH>24,D-08) → 进度(剩余÷总长,
+                需求变更 2026-10-02,取代旧 D-09「已过比例」口径——绿条与倒计时同源同值)
                 （节假日数据取自 HolidayService 内存缓存，未命中且不在退避窗时异步拉取，见 ④'）
   ④ 直刷 UI     面板可见时更新倒计时文字/进度条（tabular-nums）；每 tick 都刷，不发事件
   ⑤ 翻转沿检测  newState != _lastState → 发 StateChanged(旧→新, Degraded)（仅此时刻，§3.2）
                 跨天检测   北京日期 != _lastDate → 走 §5 跨天流程（先于 ⑥ 记账）
-  ⑥ 余额调度    到期检查见 §4.2；到期 → 异步触发刷新（绝不在 tick 内 await HTTP，§2.4）
+  ⑥ 余额调度    到期检查见 §4.2 / §4.6（显示期快轮询）；到期 → 异步触发刷新（绝不在 tick 内 await HTTP，§2.4）
 ```
 
 要点：
@@ -163,7 +164,7 @@ RequestBalanceRefresh(source):
 
 - 到期条件：`_nextTimerDue <= now`（now = ITimeProvider.UtcNow，**逐 tick 用绝对时间比较，不受系统挂起影响**——睡眠唤醒后首个 tick 立即补判，D-14 同源）。
 - `_nextTimerDue` 初值 = Start 时刻（启动即安排一次定时刷新；正式版可改为"启动即刷一次再计时"，属阶段 4 参数选择，本设计两种均兼容——到期模型不变）。
-- 间隔：`BalanceInterval`，默认 **30 分钟**，可配置范围 **5–1440 分钟**（下限 5 分钟防误配成高频轮询；上限 1440 = 一天一次）。配置在设置窗口（阶段 4），存 `%APPDATA%` JSON（D-20）。
+- 间隔：`BalanceInterval`，默认 **30 分钟**，可配置范围 **5–1440 分钟**（下限 5 分钟防误配成高频轮询；上限 1440 = 一天一次）。配置在设置窗口（阶段 4），存 `%APPDATA%` JSON（D-20）。（需求变更 2026-10-02：该周期为**面板隐藏时**的后台节奏；面板显示期间改走固定 5s 快轮询，见 §4.6）
 - 成功后 `_nextTimerDue = now + BalanceInterval`；失败后改写为 `now + CurrentBackoff`（§6.3）——退避窗口内定时**静默**（不触发请求，"窗口内静默"约束 5 的余额侧落地）。
 - 同一窗口内只发一次：触发后立刻把 `_nextTimerDue` 推进到 `max(now + BalanceInterval, now + CurrentBackoff)`，即使该 tick 因单飞被跳过（在-flight 时到期重排同样执行），杜绝同一到期点重复触发。
 
@@ -180,6 +181,16 @@ RequestBalanceRefresh(source):
 ### 4.5 未配置 Key（探针 B/正式版行为，调度层视角）
 
 未配置 Key 时 `RefreshAsync` 不发请求、直接返回 `NotConfigured` 结果（映射 A1 约定 1 的"请先在设置中配置 API Key"）；调度层把它当作**普通完成**处理：发 `BalanceRefreshed(NotConfigured)`、`_lastSuccessUtc` 不更新（避免无 Key 时 30 分钟定时白白空转——到期检查前先看 Key 状态，未配置则定时到期**不触发**请求，仅日志记"未配置，跳过"）。
+
+### 4.6 显示期快轮询（需求变更 2026-10-02）
+
+- **触发源 `FastPoll`**：面板显示期间（`NotifyPanelVisibility(true)` → `_panelVisible`）余额刷新提到**固定每 5 秒**一次（`FastPollInterval`，固定策略不设设置项）。到期检查仍挂在 1s tick 记账逻辑（⑥），复用单飞保护——**不新建线程/定时器，心跳管线与伺服对齐零改动**。
+- **面板隐藏**（`NotifyPanelVisibility(false)`）：快轮询完全停止，回到设定周期——`_nextTimerDue = (_lastSuccessUtc ?? now) + BalanceInterval`（锚点口径同 UpdateBalanceInterval）；快轮询退避序列复位（下次显示从 5s 重新起算）。
+- **重新显示立即先刷一次**：复用 §4.3 `NotifyPanelOpened` 的 Panel 源与 30s 去抖——显隐抖动 / 30s 新鲜度窗内的重显**不放大请求量**；同时把 `_nextTimerDue` 钳到 `now + FastPollInterval`，保证去抖抑制时 5s 节奏仍然接管（抑制期间数据 ≤30s 旧且 ≤5s 内必刷）。
+- **快轮询失败退避**：独立 `_fastRetry` 实例，序列 5→10→20→40→60s（60s 封顶循环，`FastPollBackoffSequence`）；成功恢复 5s 并清零。与后台 1/5/15 分钟 `_balanceRetry` **分实例不共享**（同一机制两份实例口径同 §6.1——显示期与后台的失败域节奏不同，互不放大）；失败沿用「失败不回退」UI 语义（D-07）。
+- **与心跳解耦（不许退化硬标准）**：快轮询只改写 `_nextTimerDue` 并 fire-observe 异步触发（§2.4 单飞），任何阻塞/退避/失败都不进入 tick 同步路径——1s 心跳伺服对齐不受影响。
+- **未配置 Key**：§4.5 定时静默口径不变（到期点仍按设定周期推进，不做 5s 空转；Key 保存走 keyChanged→Manual 即刷，成功完成后自然按当前节奏接管）。
+- **设置窗口**：刷新间隔项文案同步改为「后台（隐藏时）刷新周期」语义，取值范围（5–1440 分钟）与持久化机制不变。
 
 ---
 
@@ -228,7 +239,7 @@ RequestBalanceRefresh(source):
 
 ### 6.3 余额退避序列
 
-- 余额刷新失败（401/DNS/超时/畸形，D-07 四类）→ `_balanceRetry.OnFailure()`；下一次**定时**到期 = `now + CurrentBackoff`（1/5/15 分钟序列），序列内定时静默。
+- 余额刷新失败（401/DNS/超时/畸形，D-07 四类）→ `_balanceRetry.OnFailure()`；下一次**定时**到期 = `now + CurrentBackoff`（1/5/15 分钟序列），序列内定时静默。（需求变更 2026-10-02：该序列仅作用于面板隐藏时的后台节奏；面板显示期快轮询走独立的秒级退避序列 5→10→20→40→60s，见 §4.6）
 - 手动/开面板触发**始终放行**（用户显式意图是天然恢复路径），其结果同样计入 `_balanceRetry`——失败延长退避，成功清零。这是"全局门"在余额侧的形态：**定时序列被门控，人工通道保持可用**（避免"失败后用户点刷新无响应"的反 UX）。
 - 探针 E 实测（用例 D-1）：持续失败 stub 下实际尝试间隔 = 1min → 5min → 15min → 15min（Fake 时间步进验证，不真等）。
 
@@ -262,7 +273,7 @@ public sealed class FakeTimeProvider  : ITimeProvider { ... }         // 测试
 | 可注入项 | 生产实现 | 测试实现 |
 | --- | --- | --- |
 | `ITimeProvider` | SystemTimeProvider | FakeTimeProvider |
-| 心跳/余额/去抖/退避各间隔 | `SchedulerOptions`（默认值即 §2/§4/§6 数值） | 任意压缩值 |
+| 心跳/余额/去抖/退避/快轮询各间隔 | `SchedulerOptions`（默认值即 §2/§4/§6 数值） | 任意压缩值 |
 | 节假日数据源 | 主/备 HTTP 客户端（探针 C 移植） | 计数 stub（per-date 拉取计数、可编程失败 N 次） |
 | 余额客户端 | `BalanceClient`（探针 B 移植） | 恒成功/恒失败/TCS 受控挂起 stub |
 
@@ -375,7 +386,8 @@ public sealed class Scheduler : IDisposable
 4. 面板打开去抖 30s（含"距上次成功刷新 <30s"抑制）；
 5. 跨天流程：DayChanged → 缓存窗口清理 → 新日期拉取（经全局门）→ 立即重算；
 6. 日志经 SecretMasker、每 60 tick 统计摘要、`%APPDATA%` 落盘；
-7. `SetStateOverrideForProbe` 探针后门不得带进正式版。
+7. `SetStateOverrideForProbe` 探针后门不得带进正式版；
+8. 显示期快轮询（需求变更 2026-10-02，§4.6）：`NotifyPanelVisibility(true/false)` 接入面板显隐回调切换节奏；快轮询退避独立 `_fastRetry` 实例（5→10→20→40→60s）；触发只挂 1s tick 记账逻辑，心跳管线零改动。
 
 ---
 
