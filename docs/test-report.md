@@ -121,7 +121,7 @@
 | --- | --- |
 | 命令 | `dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false` → `release/publish/` |
 | 产物 | **严格单文件**：目录仅 `DeepSeekBalanceWidget.exe` 1 个文件（无 pdb/deps.json/runtimeconfig.json/原生 DLL 伴随） |
-| 体积 | **66,202,308 B（63.13 MiB）**——对照探针 D 的 71,910,187 B（68.58 MiB，被测对象为探针 A 工程）差 −5.7MB：合理偏差，两者代码负载不同（探针 A 含 sim/real 双运行器与诊断代码，正式应用代码精简），运行时与压缩机制相同；探针 D 的体积口径随被测物变化，正式版以本次 66,202,308 B 为准 |
+| 体积 | **66,202,308 B（63.13 MiB）**——对照探针 D 的 71,910,187 B（68.58 MiB，被测对象为探针 A 工程）差 −5.7MB：合理偏差，两者代码负载不同（探针 A 含 sim/real 双运行器与诊断代码，正式应用代码精简），运行时与压缩机制相同；探针 D 的体积口径随被测物变化，正式版体积以 [deployment.md §2](deployment.md) 为准（本条为阶段 5 实测值；v1.2 为 66,206,404 B / 63.14 MiB，见 §8.4） |
 | SHA-256 | `A8BABFBE25E49323A4640CC1ACBBA4F85DA1FE246E6042E5B35E6E229FD3D2E6`（历史记录；当前产物 SHA 见 docs/release-notes.md §4） |
 | 内嵌核验 | wpfgfx_cor3 / PresentationNative_cor3 / D3DCompiler_47_cor3 / vcruntime140_cor3 / PenImc_cor3 + H.NotifyIcon.Wpf.dll + 主程序集全部内嵌（coreclr/hostfxr/hostpolicy 在压缩包内，首启解压实证：`%TEMP%\.net\DeepSeekBalanceWidget\` 出现 5 个原生库共 ~7.8MB） |
 | 签名/MotW | NotSigned；无 Zone.Identifier（本机构建）。分发场景 SmartScreen 提示见 release-notes/deployment |
@@ -220,3 +220,51 @@
 
 - 高峰态自然实拍仍待补（工作日 9–12/14–18；节假日全天空闲无法自然出现）。
 - Win10 人工清单、双屏/DPI、8 小时内存趋势等观察项沿用 §4/§6 口径。
+
+
+---
+
+## 8. v1.2 增补验证（2026-10-02，需求变更：进度条剩余口径 + 绿条流光 + 显示期快轮询）
+
+### 8.1 变更与影响面
+
+| 变更 | 影响面 | 验证方式 |
+| --- | --- | --- |
+| 进度条由「当前时段已过比例」改为 **剩余 ÷ 总长** | `Peak/PeakModels.cs`（进度计算）、`Peak/PeakEngine.cs`、`Panel/PanelViewModel.cs` | 新增 `RemainingProgressTests` 8 例（翻转沿前后、跨天与连续节假日段、退化总长钳制）；既有翻转沿用例的进度断言语义同步反转 |
+| 绿条流光扫过（速度/强度档位，默认开） | `Panel/PanelWindow.xaml(.cs)`、`Settings/*`（`FlowEnabled` / `FlowSpeed` / `FlowIntensity`） | 持久化往返与旧配置缺字段取默认（`PanelStatePersistenceTests` 新增 2 例）；渲染为 WPF 叠加层，不改动托盘 ICO 像素断言 |
+| 面板显示期余额 5s 快轮询 | `Scheduling/Scheduler(.Options).cs`、`App.xaml.cs`（显隐回调注入） | 新增 `FastPollSchedulingTests` 3 例（5s 节奏 / 隐藏回设定周期 / 重显经 30s 去抖抑制 / 失败 5→10→20→40→60s 退避与成功恢复 5s） |
+
+### 8.2 自动化验证（43 → 56 用例，全绿）
+
+| 项 | 内容 |
+| --- | --- |
+| 结果 | **通过 56 / 失败 0 / 跳过 0**（`dotnet test -c Release`，GitHub Actions `windows-latest`，耗时 16s） |
+| 构建 | `dotnet build -c Release` **0 警告 0 错误**（TreatWarningsAsErrors=true） |
+| CI 记录 | run 36967274030（推送 `79c669c` 首跑）；后续两次文档提交（`2359bc9` / `67354cc`）各再跑一次，同为 56/56 |
+| TRX 计数器 | `total="56" executed="56" passed="56" failed="0" error="0" timeout="0"` |
+
+> 说明：本轮起集成测试首次在 GitHub runner（CI）上执行——v1.1 及以前的 43 例均为本机执行记录；CI 上的 56/56 与 0 警告 0 错误已连续 3 次复现。
+
+### 8.3 新增 13 例清单
+
+| 用例类 | 数量 | 用例 |
+| --- | --- | --- |
+| `RemainingProgressTests`（新增文件） | 8 | `Workday_Morning_Peak_Midpoint_Is_Half`、`Workday_Morning_Idle_Segment_Starts_At_Previous_Workday_Evening`、`Workday_Evening_Idle_Spans_Midnight_To_Next_Workday_9AM`、`Consecutive_Holiday_Idle_Segment_Starts_At_Last_Workday_Evening`、`Switch_Instant_Progress_Near_Zero_Before_And_Full_After`、`NextSwitch_Null_Keeps_Full_Green_With_Placeholder_Countdown`、`ProgressCalculator_Clamps_To_Unit_Range_And_Guards_Degenerate_Total`、`PanelViewModel_Maps_Remaining_Fraction_To_Green_Column` |
+| `FastPollSchedulingTests`（新增文件） | 3 | `Panel_Visible_FastPolls_Every_5s_Hidden_Resumes_Configured_Period`、`Panel_ReShow_Within_Debounce_Suppressed_While_Fast_Rhythm_Clamped`、`FastPoll_Failures_Back_Off_Exponentially_Capped_At_60s_Success_Restores_5s` |
+| `PanelStatePersistenceTests`（新增 2 例） | 2 | `RoundTrip_Flow_Fields`、`Legacy_File_Without_Flow_Fields_Loads_With_Flow_Defaults` |
+
+> 既有 43 例零回退；`PeakFlipIntegrationTests` 的进度断言按新口径反转（用例数不变）。快轮询于面板显示期生效、心跳仍为 1s 不受影响——翻转沿/ICO 像素/停靠吸附等既有断言全部保持。
+
+### 8.4 发布产物（v1.2.0）
+
+| 项 | 值 |
+| --- | --- |
+| 文件 | `DeepSeekBalanceWidget.exe`（SCD 压缩单文件，严格 1 个 exe、0 伴随文件） |
+| 体积 | **66,206,404 B（63.14 MiB）**——较 FB-1 修复版（66,202,308 B）增 4,096 B：单文件内嵌运行时主体不变，新增流光渲染与显示期快轮询逻辑所致 |
+| SHA-256 | `EDB92E788CC136847FA5C4E005A9D2B5CD2AAADEC9CD94696D099F91ECA4B5E1`（GitHub Release 附件下载后复算一致） |
+| 分发 | GitHub Release `v1.2.0`（附着件 digest 经 GitHub 侧复核为 `sha256:edb92e78…b5e1`） |
+
+### 8.5 遗留
+
+- **流光观感属视觉项**，无自动化断言；默认档位（克制 + 极淡）按试看结论定，如需调整默认值属产品决策而非缺陷。
+- 高峰态自然实拍、Win10 人工清单、双屏/DPI、8 小时内存趋势等观察项沿用 §4 / §6 / §7.6 口径，本轮未复测。

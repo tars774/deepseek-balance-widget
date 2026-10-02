@@ -185,7 +185,7 @@ dotnet publish src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj `
 | [docs/scheduler-design.md](docs/scheduler-design.md) | 定时巡查机制完整设计（心跳管线 / 事件契约 / 退避 / 跨天） |
 | [docs/ui-selection.md](docs/ui-selection.md) | A1 绑定规范 + v1.1/v1.2 行为增补 |
 | [docs/deployment.md](docs/deployment.md) | 构建/发布参数逐条解释 · SmartScreen · 数据位置 · 完全卸载 · Win10 清单 |
-| [docs/test-report.md](docs/test-report.md) | 12 项验收测试实录（含 09:00:00 真实峰谷切换毫秒级捕获） |
+| [docs/test-report.md](docs/test-report.md) | 12 项验收测试实录（含 09:00:00 真实峰谷切换毫秒级捕获）+ v1.1 / v1.2 增补验证 |
 | [docs/release-notes.md](docs/release-notes.md) | 版本对应关系 · 功能清单 · 已知限制 · 校验值 |
 | [docs/git-and-release.md](docs/git-and-release.md) | git 提交序列示例 · 分支与标签策略 · GitHub Release 步骤 |
 | [docs/showcase/](docs/showcase/) | 技术亮点清单 · 5 分钟演示脚本 · 常见技术问答 |

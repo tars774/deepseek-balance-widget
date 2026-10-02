@@ -26,7 +26,7 @@ dotnet publish -c Release -r win-x64
 | 形态 | 体积（探针 A 工程 / 正式版） | 干净环境运行 | 结论 |
 | --- | --- | --- | --- |
 | FDD 单文件 | 2.11 MiB / 同量级 | 依赖目标机 .NET 8 Desktop Runtime | 备选（体积敏感场景） |
-| **SCD 压缩单文件** | **68.58 MiB / 63.13 MiB（66,202,308 B）** | **成功**（最小 PATH、无 DOTNET_ROOT） | **采用** |
+| **SCD 压缩单文件** | **68.58 MiB / 63.13 MiB（66,202,308 B）**〔探针期与阶段 5 实测值；v1.2 起正式版为 63.14 MiB / 66,206,404 B，见 [deployment.md §2](../deployment.md)〕 | **成功**（最小 PATH、无 DOTNET_ROOT） | **采用** |
 | SCD 不压缩单文件 | 154.55 MiB | 成功 | 否决（无启动收益） |
 
 1. **严格单文件达成**：三形态均 1 个 exe、0 伴随文件；5 个 WPF 原生库内嵌，首启解压 ~7.8MiB 到 `%TEMP%\.net` 仅 **+36ms**（NVMe 实测）——"自包含 + 单文件"的矛盾由 `IncludeNativeLibrariesForSelfExtract` 化解。
