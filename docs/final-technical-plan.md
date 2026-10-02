@@ -122,7 +122,7 @@ DeepSeekBalanceWidget/                          ← 仓库根（阶段 4 创建�
 │  │  ├─ PanelViewModel.cs                      状态/余额/倒计时/进度/刷新时间 绑定源
 │  │  └─ Themes/Light.xaml / Dark.xaml          A1 §3 完整变量表（2 主题 × 2 状态四态色板）
 │  ├─ Settings/
-│  │  ├─ SettingsWindow.xaml(.cs)               API Key / 刷新间隔 / 开机自启 / 主题
+│  │  ├─ SettingsWindow.xaml(.cs)               API Key / 刷新周期 / 流光效果 / 开机自启 / 主题
 │  │  │                                         （+ P2 可选：手动输入余额）
 │  │  ├─ AppSettings.cs + LocalSettingsStore.cs 非敏感配置存 %APPDATA%（JSON，
 │  │  │                                         System.Text.Json；.gitignore 排除）
@@ -138,7 +138,7 @@ DeepSeekBalanceWidget/                          ← 仓库根（阶段 4 创建�
 | --- | --- | --- |
 | **Tray**（托盘控制器） | 图标生成与橙/绿切换、tooltip、右键菜单（打开面板/设置/退出）、左键切换（含双向防抖协同）、弹出定位（Topmost 水平避让） | 探针 A：2.3.2 下动态图标唯一干净路径 = 运行时渲染→ICO 落盘→BitmapImage（§4-1/2）；DIB 通道顺序 R/B 教训（§4-3）；Topmost 面板必须水平避让托盘图标列（§2.2.3）；溢出区行为边界（§3） |
 | **Panel**（A1 规范面板） | 320×230 无边框圆角窗口、四态主题资源、失焦隐藏（Deactivated→Hide）、状态/余额/倒计时/进度绑定 | 探针 A：显示侧 300ms + 隐藏侧 250ms 双向防抖（§2.1）；`ShowActivated=false` + Show 后延迟一拍 `Activate()`（Background 优先级）（§2.1）；`WS_EX_TOOLWINDOW` + `ShowInTaskbar=false` + Topmost（§1-6）；四态色板逐像素命中 A1（§1-5）；窗口 348×258 外框留 14px 阴影余量（§5.2） |
-| **Settings**（设置窗口） | API Key 保存/清除、刷新间隔、开机自启（HKCU Run）、主题三模式；（可选）P2 手动输入余额 | 探针未直接覆盖（探针 A 为占位菜单项，§1-2 备注）；按钮线性 SVG 图标造型已在探针 A 按 A1 规范实现（§5.5）；P2 手动余额模式依据探针 B §4 + 可行性报告 §8-P2 |
+| **Settings**（设置窗口） | API Key 保存/清除、后台刷新周期、**流光效果**（开关 + 速度/强度档位）、开机自启（HKCU Run）、主题三模式；（可选）P2 手动输入余额 | 探针未直接覆盖（探针 A 为占位菜单项，§1-2 备注）；按钮线性 SVG 图标造型已在探针 A 按 A1 规范实现（§5.5）；P2 手动余额模式依据探针 B §4 + 可行性报告 §8-P2 |
 | **Credentials**（凭据存取） | API Key 写入/读取/覆盖/删除（Credential Manager） | 探针 B：GENERIC=1、LOCAL_MACHINE=2、Unicode W 变体全链通过；删除后 ERROR_NOT_FOUND(1168) 正常处理（§1-1） |
 | **BalanceService**（余额客户端） | 调用 `GET https://api.deepseek.com/user/balance`（Bearer）、解析、异常分类映射 | 探针 B：`balance_infos[]` 嵌套 + 字符串类型 + 优先 CNY + InvariantCulture（§二）；401/DNS(HostNotFound)/超时(TaskCanceledException←TimeoutException)/畸形(JsonReaderException/JsonException) 四类精确分类（§1-3~6）；0 余额为普通成功、`is_available=false` 为展示态非错误（§三） |
 | **PeakService**（峰谷 + 节假日） | 峰谷状态/倒计时/进度离线计算、节假日双源客户端、按北京日期缓存、前瞻拉取、退避全局门 | 探针 C：Core 7 文件结构可直接移植（§6）；归一化层 HolidayData(IsReportedHoliday, IsMakeupWorkday, IsWeekendReported)（§3-5）；DayOfWeek 优先兜住补班周末（§1-A、§3-4）；缓存每日期恰拉一次、跨天零重复（§1-E）；退避 1/5/15 封顶 15 分钟循环、成功重置、全局门（§1-F、§3-7）；前瞻拉取上限 400 天、周末短路（§3-6） |
@@ -172,7 +172,7 @@ DeepSeekBalanceWidget/                          ← 仓库根（阶段 4 创建�
 | D-17 | **主题三模式**：浅色 / 深色 / 跟随系统；跟随系统读注册表 `AppsUseLightTheme` 并监听 `WM_SETTINGCHANGE`（可辅以心跳低频轮询兜底）；深浅色用资源字典统一切换入口，色板严格取 A1 §3 变量表（四态：浅/深 × 高峰/空闲） | RM-6；探针 A 已验证主题切换触发面板四态重绘（菜单驱动） | 可行性报告 §5-13/§4（R13/RM-6）；探针 A 报告 §1-3；A1 规范 §3 |
 | D-18 | **发布形态**：SCD 压缩单文件（D-02 参数表），交付物 README 写明 68.58 MiB 预期与 `%TEMP%\.net` 解压行为；不裁剪、不 AOT、不分发不压缩形态 | 探针 D §2/§3/§8 | 探针 D 报告 §8；可行性报告 §5-2 |
 | D-19 | **P2 产品级可选降级**：用户不提供 API Key 时，可在设置窗口手动输入余额（仅本地展示，不涉及网络与凭据存储），峰谷功能不受影响；未启用该模式时余额区按 A1 补充约定 1 显示"请先在设置中配置 API Key"并可点击打开设置 | 探针 B §4"仅在用户不愿提供 Key 的产品场景下可选保留" | 探针 B 报告 §4；可行性报告 §8-探针 B；A1 规范 §5-1 |
-| D-20 | **非敏感设置本地存储**：刷新间隔/主题/自启/（可选）手动余额等非敏感项存 `%APPDATA%` 下本地 JSON 配置（System.Text.Json 读写），`.gitignore` 排除；仅 API Key 进 Credential Manager | 可行性报告 §2.4（本地配置不入库）；%APPDATA% 约定与 D-16 一致 | 可行性报告 §2.4；探针 D 报告 §3（%APPDATA% 先例） |
+| D-20 | **非敏感设置本地存储**：刷新间隔/主题/自启/（可选）手动余额/**流光效果（`FlowEnabled` / `FlowSpeed` / `FlowIntensity`）**等非敏感项存 `%APPDATA%` 下本地 JSON 配置（System.Text.Json 读写；旧配置缺字段取默认值），`.gitignore` 排除；仅 API Key 进 Credential Manager | 可行性报告 §2.4（本地配置不入库）；%APPDATA% 约定与 D-16 一致 | 可行性报告 §2.4；探针 D 报告 §3（%APPDATA% 先例） |
 
 ---
 

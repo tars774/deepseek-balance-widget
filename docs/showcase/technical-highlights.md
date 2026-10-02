@@ -30,18 +30,18 @@
 - **实测**：真实 Key 全树（含日志/evidence）UTF-8+UTF-16 双编码字节级扫描 **0 命中**；假 Key 三形态注入日志 0 明文；阶段 5 对 `%APPDATA%` 全部 7 个文件机扫 0 命中（假密钥仅以"长度 54"出现）。
 - **代码位置**：`src/DeepSeekBalanceWidget/Credentials/Win32CredentialStore.cs`、`Infrastructure/SecretMasker.cs`、`Infrastructure/Logger.cs`。
 
-## 5. 43 集成测试：真组件 + 假时钟
+## 5. 56 集成测试：真组件 + 假时钟
 
 - **问题**：WPF 组件的时间行为（翻转沿/跨天/退避 21 分钟序列）无法靠真实等待测试；纯 mock 测试又测不出组件联动问题。
 - **方案**：自建 STA + Dispatcher 测试线程承载真实 WPF 组件；`FakeTimeProvider` 注入假时钟（手动步进/加速倍率）；节假日与余额用计数替身（零网络）；断言覆盖：跨 12:00:00 状态翻转全管线联动（StateChanged 恰 1 次、托盘换色、胶囊翻转、进度重置）、4 枚 ICO 变体逐像素 = A1 色板、退避序列 1/5/15/15 分钟（假时钟秒级验证）、面板余额四态、0 余额正常成功态、钉住菜单两处同步不回环、面板停靠/吸附/阈值 25 断言。
-- **实测**：43/43 通过（Debug 与 Release 双跑；43 含 FB-1 回归 2 例，2026-10-01 起）；0 警告 0 错误（TreatWarningsAsErrors=true）。
+- **实测**：56/56 通过（Debug 与 Release 双跑；v1.2 需求变更 2026-10-02 后由 43→56 例，含 FB-1 回归 2 例）；0 警告 0 错误（TreatWarningsAsErrors=true）。
 - **代码位置**：`tests/DeepSeekBalanceWidget.IntegrationTests/`（PeakFlip / TrayIconVariant / BalanceScheduling / PanelPlacement / PanelStatePersistence / TrayPinMenu / PanelViewModelBalanceState）。
 
 ## 6. 63 MiB 单文件免安装
 
 - **问题**：WPF 不支持裁剪/AOT，自包含发布天然庞大，且原生 DLL 默认散落 exe 旁破坏"单文件"。
 - **方案**：SCD 压缩单文件（参数见 [ADR-005](../adr/ADR-005-scd-single-file.md)），原生库内嵌 + 首启解压。
-- **实测**：严格 1 个 exe、0 伴随文件，**66,202,308 B（63.13 MiB）**；首启解压 5 原生库 ~7.8MiB 仅 +36ms；干净环境（最小 PATH、无 DOTNET_ROOT）冷启托盘就绪 **976ms**；退出后 exe 旁零新增文件。
+- **实测**：严格 1 个 exe、0 伴随文件，**66,206,404 B（63.14 MiB）**；首启解压 5 原生库 ~7.8MiB 仅 +36ms；干净环境（最小 PATH、无 DOTNET_ROOT）冷启托盘就绪 **976ms**；退出后 exe 旁零新增文件。
 - **代码位置**：发布参数在 [deployment.md](../deployment.md)；`DeepSeekBalanceWidget.csproj`（`PublishTrimmed=false`、`PublishAot=false`）。
 
 ## 7. 图标渲染管线：绕过 H.NotifyIcon 2.3.2 的转换限制

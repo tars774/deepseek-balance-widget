@@ -20,7 +20,7 @@
 
 ## 5. 为什么安装包有 63MB？能不能小一点？
 
-WPF 不支持裁剪（PublishTrimmed）与 NativeAOT，自包含发布必须内嵌整个 .NET 8 运行时 + WPF 原生库；压缩后 63.13 MiB。换来的是：免安装、目标机**不需要装 .NET**、单文件 0 伴随。若体积敏感（如内网分发），可按 [deployment.md §2](../deployment.md) 用 FDD 参数自行发布出 **2.11 MiB** 单文件——代价是目标机需安装 .NET 8 Desktop Runtime。详见 [ADR-005](../adr/ADR-005-scd-single-file.md)。
+WPF 不支持裁剪（PublishTrimmed）与 NativeAOT，自包含发布必须内嵌整个 .NET 8 运行时 + WPF 原生库；压缩后 63.14 MiB。换来的是：免安装、目标机**不需要装 .NET**、单文件 0 伴随。若体积敏感（如内网分发），可按 [deployment.md §2](../deployment.md) 用 FDD 参数自行发布出 **2.11 MiB** 单文件——代价是目标机需安装 .NET 8 Desktop Runtime。详见 [ADR-005](../adr/ADR-005-scd-single-file.md)。
 
 ## 6. 支持 Windows 10 吗？
 
@@ -28,7 +28,7 @@ WPF 不支持裁剪（PublishTrimmed）与 NativeAOT，自包含发布必须内�
 
 ## 7. 会消耗我的 token / 产生费用吗？
 
-余额查询接口官方定位为账户查询接口，探针期多轮真实调用无异常计费证据——**"不耗 token"是低风险既定假设，未被严格证实**。保守设计：默认 30 分钟轮询（可调至最高 1440 分钟 = 一天一次）；未配置 Key 时定时到期**完全不发请求**；失败进入 1/5/15 分钟退避不消耗请求。详见 [deepseek-api.md](../deepseek-api.md)。
+余额查询接口官方定位为账户查询接口，探针期多轮真实调用无异常计费证据——**"不耗 token"是低风险既定假设，未被严格证实**。保守设计：后台默认 30 分钟轮询（可调至最高 1440 分钟 = 一天一次），**面板显示期 5 秒快轮询**（v1.2，固定策略、仅面板可见时生效，隐藏即回设定周期、重显先刷一次）；未配置 Key 时定时到期**完全不发请求**；失败进入退避（后台 1/5/15 分钟、显示期 5→60 秒）不消耗无效请求。详见 [deepseek-api.md](../deepseek-api.md)。
 
 ## 8. 托盘图标找不到 / 左键行为不对？
 
@@ -49,4 +49,4 @@ UI 风格分歧若发生在代码完成后返工成本最高。项目把审美�
 
 ## 12. 集成测试怎么做到不依赖网络、不真等 21 分钟退避？
 
-测试工程（`tests/DeepSeekBalanceWidget.IntegrationTests/`）自建 STA + Dispatcher 线程承载**真实** WPF 组件（Scheduler/PeakEngine/TrayController/PanelViewModel），时间经 `ITimeProvider` 注入 `FakeTimeProvider`（手动步进 + 加速倍率），节假日与余额用计数替身——零网络、退避序列秒级验证。43 用例（含 FB-1 回归 2 例）Debug/Release 双跑全绿。详见 [technical-highlights.md §5](technical-highlights.md)。
+测试工程（`tests/DeepSeekBalanceWidget.IntegrationTests/`）自建 STA + Dispatcher 线程承载**真实** WPF 组件（Scheduler/PeakEngine/TrayController/PanelViewModel），时间经 `ITimeProvider` 注入 `FakeTimeProvider`（手动步进 + 加速倍率），节假日与余额用计数替身——零网络、退避序列秒级验证。56 用例（v1.2 需求变更后 43→56，含 FB-1 回归 2 例）Debug/Release 双跑全绿。详见 [technical-highlights.md §5](technical-highlights.md)。

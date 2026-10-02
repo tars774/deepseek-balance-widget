@@ -11,16 +11,19 @@
 | 功能 | 说明 |
 | --- | --- |
 | 托盘常驻状态灯 | 高峰=橙色圆点、空闲=绿色圆点，随深浅主题各两枚精确色值变体；tooltip 实时"高峰/空闲时段" |
-| 弹出信息面板（320×230） | 状态胶囊、总余额、倒计时（HH:mm:ss，等宽数字防抖动）、时段进度条、上次刷新时间；左键托盘弹出/隐藏，失焦自动隐藏 |
+| 弹出信息面板（320×230） | 状态胶囊、总余额、倒计时（HH:mm:ss，等宽数字防抖动）、时段进度条（**剩余 ÷ 总长**口径，与倒计时逐秒同步）、上次刷新时间；左键托盘弹出/隐藏，失焦自动隐藏 |
 | **v1.1 右缘停靠** | 无位置记忆时面板默认停靠主屏工作区右缘（贴右缘、任务栏上方 12px，含 14px 阴影边距换算） |
 | **v1.1 拖动 + 吸附** | 按住面板空白处拖动（>4px 阈值防误触，按钮/提示等可交互元素豁免）；释放后距右缘 ≤28px 自动吸附贴边 |
 | **v1.1 钉住面板** | 面板顶行图钉钮 + 托盘菜单"钉住面板"勾选项，两处实时同步；钉住后失焦不再隐藏 |
 | **v1.1 位置记忆** | 拖动/吸附与钉住状态持久化；重启后点托盘显示在记忆位置（仍不自动弹出） |
 | **v1.1 钉住时置顶** | 设置窗口可配置"钉住时置顶"（默认开）；未钉住弹出时始终置顶 |
+| **v1.2 进度条剩余口径** | 绿条改「剩余 ÷ 总长」，与倒计时数字同源同值、逐秒严格同步；数字归零瞬间绿条恰好归零，翻入新时段立即回满；高峰/空闲两态对称 |
+| **v1.2 绿条流光扫过** | 淡白高光带自左向右匀速掠过（速度克制/明显 × 强度极淡/可见，默认克制+极淡且开启）；高光严格裁剪在绿条圆角内，关闭后绿条纯色静止 |
+| **v1.2 显示期快轮询** | 面板显示期间余额每 5 秒刷新（固定策略，无需配置）；隐藏后回到设定周期（默认 30 分钟）；重新显示立即先刷一次；失败按 5→10→20→40→60 秒指数退避，成功恢复 5 秒 |
 | 峰谷判定（离线） | 工作日 09:00–12:00、14:00–18:00 高峰；周六/周日一律全天空闲；法定节假日按"本地星期优先"规则（调休补班周末不误判） |
 | 节假日双源 | 主源 + 备源自动切换，按北京日期缓存、跨天重拉、前瞻 400 天；双源失败退避 1/5/15 分钟并降级为"周一至五"本地判断（UI 标注） |
-| 余额查询 | DeepSeek 官方 `/user/balance`；API Key 仅存 Windows 凭据管理器；30 分钟后台巡查 + 打开面板即刷（30s 去抖）+ 手动按钮三触发源；失败精确分类（401 / DNS / 超时 / 畸形 JSON） |
-| 设置窗口 | API Key 保存/清除、刷新间隔（5–1440 分钟）、开机自启（HKCU Run）、主题三模式（跟随系统/浅色/深色）、可选手动余额模式 |
+| 余额查询 | DeepSeek 官方 `/user/balance`；API Key 仅存 Windows 凭据管理器；后台巡查（默认 30 分钟，可配 5–1440）+ **面板显示期 5 秒快轮询** + 打开面板即刷（30s 去抖）+ 手动按钮；失败精确分类（401 / DNS / 超时 / 畸形 JSON）并按 5→10→20→40→60 秒指数退避 |
+| 设置窗口 | API Key 保存/清除、后台（隐藏时）刷新周期（5–1440 分钟）、**流光效果**开关与速度/强度档位、开机自启（HKCU Run）、主题三模式（跟随系统/浅色/深色）、可选手动余额模式 |
 | 定时巡查引擎 | 1 秒伺服心跳（实测 5.5 分钟累计漂移 +2.5ms），倒计时每秒直刷、状态翻转沿驱动托盘/胶囊、跨天检测（UTC 16:00） |
 | 健壮性 | 单实例 Mutex；全局异常兜底；日志按日滚动、全量脱敏（0 Key / 0 Authorization）；退出全清理（托盘/图标文件/Mutex） |
 
@@ -74,8 +77,8 @@ flowchart TD
 | HTTP/JSON | HttpClient + System.Text.Json | 节假日客户端 8s 超时、余额 8s 超时 |
 | 凭据 | Windows Credential Manager | 自写 CredWriteW/CredReadW/CredDeleteW P/Invoke，无第三方库 |
 | 日志 | 自写 Logger + SecretMasker | `%APPDATA%\DeepSeekBalanceWidget\logs\`，"出现即打码" |
-| 测试 | xUnit 集成测试 43 用例 | 真组件 + 假时钟（FakeTimeProvider），零网络替身 |
-| 发布 | SCD 自包含·压缩·单文件 | 66,202,308 B（63.13 MiB），免安装免 .NET 环境 |
+| 测试 | xUnit 集成测试 56 用例 | 真组件 + 假时钟（FakeTimeProvider），零网络替身 |
+| 发布 | SCD 自包含·压缩·单文件 | 66,206,404 B（63.14 MiB），免安装免 .NET 环境 |
 
 ## 快速开始
 
@@ -84,7 +87,7 @@ flowchart TD
 3. 双击运行：任务栏通知区出现状态圆点（新装通常在溢出弹层"^"内，建议右键任务栏固定到可见区）。
 4. 左键圆点：弹出面板。右键圆点：打开面板 / 设置 / 退出。
 5. （可选）"设置" → 粘贴 `sk-` 开头的 DeepSeek API Key → "保存 Key"。Key 只进 Windows 凭据管理器，不落文件、不进日志。**不配置 Key 也能用**：峰谷/倒计时/进度/主题全部离线可用，仅余额区提示。
-6. 钉住与拖动（v1.1）：点面板顶行图钉钮（或托盘菜单"钉住面板"）常驻显示；按住面板空白处拖动，靠近屏幕右缘自动吸附；位置跨启动记忆。
+6. 钉住 · 拖动 · 流光（v1.1/v1.2）：点面板顶行图钉钮（或托盘菜单"钉住面板"）常驻显示；按住面板空白处拖动，靠近屏幕右缘自动吸附；位置跨启动记忆；绿条流光可在「设置 → 流光效果」开关或换档（默认开）。
 
 ## 构建 · 测试 · 发布
 
@@ -92,7 +95,7 @@ flowchart TD
 # 还原 + 构建（要求 0 警告 0 错误，TreatWarningsAsErrors=true）
 dotnet build src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj -c Release
 
-# 集成测试（43 用例；真实 WPF 组件 + 注入假时钟）
+# 集成测试（56 用例；真实 WPF 组件 + 注入假时钟）
 dotnet test tests/DeepSeekBalanceWidget.IntegrationTests/DeepSeekBalanceWidget.IntegrationTests.csproj -c Release
 
 # SCD 自包含·压缩·单文件发布（约 1 分钟，压缩占大头）
@@ -104,13 +107,13 @@ dotnet publish src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj `
   -o release/publish
 ```
 
-产物核验：`release/publish/` 内应**仅有** `DeepSeekBalanceWidget.exe`（63.13 MiB 量级）；SHA-256 计算与完整参数解释见 [docs/deployment.md](docs/deployment.md)。CI 工作流见 [.github/workflows/build.yml](.github/workflows/build.yml)。
+产物核验：`release/publish/` 内应**仅有** `DeepSeekBalanceWidget.exe`（63.14 MiB 量级）；SHA-256 计算与完整参数解释见 [docs/deployment.md](docs/deployment.md)。CI 工作流见 [.github/workflows/build.yml](.github/workflows/build.yml)。
 
 ## 目录结构
 
 ```
 ├─ src/DeepSeekBalanceWidget/            单工程 · 8 模块目录（见下）
-├─ tests/DeepSeekBalanceWidget.IntegrationTests/   xUnit 集成测试（43 用例）
+├─ tests/DeepSeekBalanceWidget.IntegrationTests/   xUnit 集成测试（56 用例）
 ├─ docs/                                 全套文档（架构 / ADR / 探针结论 / API / 部署…）
 │  └─ showcase/                          技术亮点 · 演示脚本 · FAQ
 ├─ design/ui-preview/                    12 候选 UI 预览页（HTML，浏览器直接打开）
@@ -126,18 +129,18 @@ dotnet publish src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj `
 
 - **心跳**：UI 线程 `DispatcherTimer(1s)`，伺服式绝对对齐（`Interval = clamp(Heartbeat − 误差, 250, 2000ms)`）消除系统计时器量化漂移——实测单 tick 间隔 mean **1000.0ms**、5.5 分钟累计漂移 **+2.5ms**（朴素模式为 0.03–0.85 s/分钟且逐轮累积）。
 - **六步管线**：读时钟 → 漂移记账 → 峰谷快照重算（纯内存，绝不等网络）→ UI 直刷（面板可见时）→ 翻转沿/跨天检测 → 余额调度检查。
-- **三触发源**：后台定时（默认 30 分钟，可配 5–1440）/ 打开面板即刷（30s 去抖）/ 手动按钮（立即触发）；统一入口 + 单飞重入保护。
-- **退避**：失败后 1/5/15 分钟封顶循环的**全局门**（节假日与余额各一份实例、同一机制）；退避窗口内定时静默，手动通道保持可用；成功清零并立即刷新快照。
+- **余额触发源**：后台定时（默认 30 分钟，可配 5–1440）/ **面板显示期 5 秒快轮询**（固定策略，显示期覆盖后台周期；隐藏即回设定周期，重新显示先立即刷一次）/ 打开面板即刷（30s 去抖）/ 手动按钮；统一入口 + 单飞重入保护。
+- **退避**：失败后按序列封顶循环的**全局门**——节假日与余额后台为 1/5/15 分钟，余额显示期快轮询为 5/10/20/40/60 秒（各自独立实例，互不放大）；退避窗口内定时静默，手动通道保持可用；成功清零并立即刷新快照。
 - **跨天**：北京日期变更（= UTC 16:00）触发节假日缓存失效与重拉，睡眠唤醒后首个 tick 按绝对时间自动补判。
 
 设计文档与探针实测：[docs/scheduler-design.md](docs/scheduler-design.md)
 
 ## 界面预览与选型流程
 
-正式实现前先做了 **12 个候选项**（4 风格 × 3 候选：A 现代简约 / B 科技深色 / C 卡片拟物 / D 极简线条，每候选 4 种状态渲染）的静态 HTML 预览页，经两轮验收修正渲染缺陷后提交用户，用户选定 **A1（现代简约 · 单列紧凑一屏直读）**，其精确设计参数（320×230 布局、14px 圆角、完整四态色板等）被固化为绑定规范；v1.1 又以"§7 行为增补"方式扩展（图钉钮/右缘停靠/拖动吸附），既有视觉规格保持不变。
+正式实现前先做了 **12 个候选项**（4 风格 × 3 候选：A 现代简约 / B 科技深色 / C 卡片拟物 / D 极简线条，每候选 4 种状态渲染）的静态 HTML 预览页，经两轮验收修正渲染缺陷后提交用户，用户选定 **A1（现代简约 · 单列紧凑一屏直读）**，其精确设计参数（320×230 布局、14px 圆角、完整四态色板等）被固化为绑定规范；v1.1 又以"§7 行为增补"方式扩展（图钉钮/右缘停靠/拖动吸附）；v1.2 再以"§8 行为增补"加入进度条剩余口径与绿条流光效果（需求变更 2026-10-02），既有视觉规格保持不变。
 
 - 预览页：[design/ui-preview/index.html](design/ui-preview/index.html)（浏览器直接打开）
-- 绑定规范与 v1.1 增补：[docs/ui-selection.md](docs/ui-selection.md)
+- 绑定规范与 v1.1/v1.2 增补：[docs/ui-selection.md](docs/ui-selection.md)
 
 ## 已知平台限制与解决方案
 
@@ -156,7 +159,7 @@ dotnet publish src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj `
 - **双源节假日 + 本地星期优先**：调休补班的周末两源字面都报"工作日"，本地 `DayOfWeek` 优先规则兜住"周末一律空闲"（探针 C 两源对拍 5 日期一致 + 补班周末双源证据）。
 - **四类异常精确映射**：401 / DNS（`SocketException(HostNotFound)`）/ 超时（`TaskCanceledException←TimeoutException`）/ 畸形 JSON 各自映射独立 UI 态，失败不回退显示过期缓存余额。
 - **Key 无明文**：仅存 Windows 凭据管理器（自写 P/Invoke 全链实测）；日志写入层统一脱敏，`sk-`/`Bearer`/高熵片段"出现即打码"，双编码机扫 0 泄漏。
-- **43 集成测试 + 真组件假时钟**：真实 Scheduler/PeakEngine/TrayController/PanelViewModel 跨 12:00:00 联动断言、4 枚 ICO 变体逐像素 = A1 色板、退避序列 1/5/15 分钟用假时钟秒级验证（不真等）。
+- **56 集成测试 + 真组件假时钟**：真实 Scheduler/PeakEngine/TrayController/PanelViewModel 跨 12:00:00 联动断言、4 枚 ICO 变体逐像素 = A1 色板、退避序列（节假日与余额后台 1/5/15 分钟、显示期快轮询 5→60 秒）用假时钟秒级验证（不真等）；含 v1.2 剩余口径、流光档位与快轮询回归。
 - **63 MiB 单文件免安装**：SCD 压缩单文件严格 1 个 exe、0 伴随文件，WPF 原生库内嵌、首启解压仅 +36ms，冷启托盘就绪 <1s。
 
 完整版（问题→方案→实测数字→代码位置）：[docs/showcase/technical-highlights.md](docs/showcase/technical-highlights.md)

@@ -17,7 +17,7 @@
 # 还原 + 构建（项目 TreatWarningsAsErrors=true，要求 0 警告 0 错误）
 dotnet build src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj -c Release
 
-# 集成测试（43 用例，真实 WPF 组件 + 假时钟）
+# 集成测试（56 用例，真实 WPF 组件 + 假时钟）
 dotnet test tests/DeepSeekBalanceWidget.IntegrationTests/DeepSeekBalanceWidget.IntegrationTests.csproj -c Release
 ```
 
