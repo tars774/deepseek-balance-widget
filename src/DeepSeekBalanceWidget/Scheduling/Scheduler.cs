@@ -8,7 +8,7 @@ namespace DeepSeekBalanceWidget.Scheduling;
 
 public enum BalanceRefreshSource
 {
-    /// <summary>后台定时（默认 30 分钟，可配置 5–1440）。</summary>
+    /// <summary>后台定时（默认 30 分钟，可配置 5–1440；面板隐藏时生效）。</summary>
     Timer,
 
     /// <summary>面板打开即刷（30s 去抖）。</summary>
@@ -16,6 +16,9 @@ public enum BalanceRefreshSource
 
     /// <summary>手动刷新按钮（立即触发，不去抖）。</summary>
     Manual,
+
+    /// <summary>显示期快轮询（需求变更 2026-10-02：面板显示期间固定每 5s，§4.6）。</summary>
+    FastPoll,
 }
 
 // ---------------- 事件契约（scheduler-design §3.2：全部在 UI 线程触发） ----------------
@@ -51,6 +54,10 @@ public sealed class SchedulerCounters
 /// （§2.3，2026-09-29 探针 E 实测修订：WPF 改 Interval 按"旧到期点"重排，伺服式在两种平台语义下均收敛）；
 /// 倒计时/进度每 tick 直刷（绝对差值，永不累加）、托盘/胶囊仅在翻转沿更新；
 /// 余额调度三触发源 + 单飞重入保护 + 1/5/15 分钟退避全局门 + 未配置 Key 定时静默（§4.5）。
+/// 需求变更 2026-10-02（§4.6 显示期快轮询）：面板显示期间余额刷新固定每 5s（FastPoll 源），
+/// 隐藏后回到设定周期（Timer 源）；重新显示立即先刷一次（复用 Panel 源 30s 去抖吸收显隐抖动），
+/// 到期点钳入 5s 节奏；快轮询失败退避 5→10→20→40→60s 封顶（分实例，成功恢复 5s）；
+/// 快轮询仅改写到期点 + fire-observe 异步触发（§2.4 单飞），1s 心跳管线零改动、不受快轮询阻塞影响。
 /// 事件全部在 UI 线程触发，订阅者无需自行封送（§3.2）。
 /// </summary>
 public sealed class Scheduler : IDisposable
@@ -61,6 +68,7 @@ public sealed class Scheduler : IDisposable
     private readonly SchedulerOptions _opt;
     private readonly HolidayService _holidays;
     private readonly RetryPolicy _balanceRetry;
+    private readonly RetryPolicy _fastRetry;    // 需求变更 2026-10-02：显示期快轮询退避（5→10→20→40→60s）
     private readonly Dispatcher _dispatcher;
     private readonly Func<bool> _isKeyConfigured;
     private readonly Stopwatch _sw = Stopwatch.StartNew();
@@ -71,6 +79,7 @@ public sealed class Scheduler : IDisposable
     private DateTimeOffset? _lastPanelTriggerUtc;
     private DateTimeOffset? _lastSuccessUtc;
     private bool _balanceInFlight;
+    private bool _panelVisible;                    // 需求变更 2026-10-02：面板显示态（快轮询节奏开关）
     private PeakState? _lastState;
     private DateOnly? _lastDate;
     private long _skippedSlotsTotal;
@@ -113,11 +122,13 @@ public sealed class Scheduler : IDisposable
         _dispatcher = dispatcher;
         _isKeyConfigured = isKeyConfigured;
         _balanceRetry = new RetryPolicy(opt.BackoffSequence);
+        _fastRetry = new RetryPolicy(opt.FastPollBackoffSequence);   // 需求变更 2026-10-02
         // §4.2：正式版取"启动即刷一次再计时"（首 tick 到期即触发，来源 Timer）
         _nextTimerDue = time.UtcNow;
         _statsAnchorSw = _sw.Elapsed;
         AppLog.Info($"Scheduler 构造：heartbeat={opt.Heartbeat.TotalSeconds:0.#}s " +
                     $"balanceInterval={opt.BalanceInterval.TotalMinutes:0}min " +
+                    $"fastPollInterval={opt.FastPollInterval.TotalSeconds:0}s " +
                     $"panelDebounce={opt.PanelDebounce.TotalSeconds:0}s 首次定时到期=启动即刷");
     }
 
@@ -262,13 +273,18 @@ public sealed class Scheduler : IDisposable
         AppLog.Info($"立即刷新快照 reason={reason} state={snap.State} countdown={snap.CountdownText}");
     }
 
-    // ---------------- 余额刷新调度（§4 三触发源 + §2.4 单飞） ----------------
+    // ---------------- 余额刷新调度（§4 三触发源 + §2.4 单飞 + §4.6 显示期快轮询） ----------------
+
+    /// <summary>当前余额刷新节奏（需求变更 2026-10-02）：面板显示期 5s 快轮询 / 隐藏时设定周期。</summary>
+    private TimeSpan CurrentCadence => _panelVisible ? _opt.FastPollInterval : _opt.BalanceInterval;
 
     private void CheckBalanceDue(DateTimeOffset now)
     {
         if (now < _nextTimerDue) return;
 
-        // §4.5：未配置 Key 时定时到期不触发请求（避免空转），仅推进到期点并记日志
+        // §4.5：未配置 Key 时定时到期不触发请求（避免空转），仅推进到期点并记日志。
+        // 推进按设定周期（不随显示期加速——无 Key 时快节奏空转无意义；Key 保存经 keyChanged→Manual
+        // 即刷，成功完成后自然按当前节奏接管）
         if (!_isKeyConfigured())
         {
             _nextTimerDue = now + _opt.BalanceInterval;
@@ -276,16 +292,19 @@ public sealed class Scheduler : IDisposable
             return;
         }
 
+        // 显示期快轮询（需求变更 2026-10-02）：仅按当前节奏改写到期点 + fire-observe 异步触发，
+        // 无任何同步阻塞路径——1s 心跳节拍不受快轮询影响（不许退化硬标准）
+        var cadence = CurrentCadence;
         if (_balanceInFlight)
         {
-            // §2.4 单飞：不排队、不并发；同一到期点只触发一次
+            // §2.4 单飞：不排队、不并发；同一到期点只触发一次（按当前节奏重排，显示期 5s 内自然补判）
             Counters.ReentrySkips++;
-            _nextTimerDue = now + _opt.BalanceInterval;
+            _nextTimerDue = now + cadence;
             AppLog.Warn($"余额定时到期但上次刷新未完成 → 跳过本次触发（单飞重入保护）skips={Counters.ReentrySkips} tick#{TickCount}");
             return;
         }
-        _nextTimerDue = now + _opt.BalanceInterval;
-        RequestBalanceRefresh(BalanceRefreshSource.Timer);
+        _nextTimerDue = now + cadence;
+        RequestBalanceRefresh(_panelVisible ? BalanceRefreshSource.FastPoll : BalanceRefreshSource.Timer);
     }
 
     /// <summary>面板打开即刷（30s 去抖，§4.3：距上次触发或距上次成功刷新 &lt;30s 一并抑制）。</summary>
@@ -307,6 +326,35 @@ public sealed class Scheduler : IDisposable
         }
         _lastPanelTriggerUtc = now;
         RequestBalanceRefresh(BalanceRefreshSource.Panel);
+    }
+
+    /// <summary>
+    /// 面板显隐切换（需求变更 2026-10-02，App 经 PanelWindow 的 panelShown/panelHidden 回调接入，UI 线程调用）：
+    /// 显示期 → 余额快轮询开启（固定每 5s，FastPoll 源）+ 立即先刷一次（复用 §4.3 Panel 源与 30s 去抖——
+    /// 显隐抖动 / 30s 新鲜度窗内的重显不放大请求量），并把到期点钳入快轮询节奏（去抖抑制时 5s 节奏仍然接管）；
+    /// 隐藏 → 快轮询完全停止，回到设定周期（锚点 = 最近成功时刻，同 UpdateBalanceInterval 口径；
+    /// 快轮询退避序列复位，重显后从 5s 重新起算）。
+    /// </summary>
+    public void NotifyPanelVisibility(bool visible)
+    {
+        if (_panelVisible == visible) return;
+        _panelVisible = visible;
+        var now = _time.UtcNow;
+        if (visible)
+        {
+            AppLog.Info($"面板进入显示期 → 余额快轮询开启（每 {_opt.FastPollInterval.TotalSeconds:0}s）");
+            NotifyPanelOpened();   // 立即先刷一次（30s 去抖：频繁显隐不放大请求量）
+            if (_nextTimerDue > now + _opt.FastPollInterval)
+                _nextTimerDue = now + _opt.FastPollInterval;
+        }
+        else
+        {
+            _fastRetry.OnSuccess();   // 显示期会话结束：退避序列复位（下次显示从 5s 重新起算）
+            var anchor = _lastSuccessUtc ?? now;
+            _nextTimerDue = anchor + _opt.BalanceInterval;
+            AppLog.Info($"面板离开显示期 → 快轮询停止，回到设定周期 {_opt.BalanceInterval.TotalMinutes:0}min，" +
+                        $"下次定时到期 {_nextTimerDue.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+        }
     }
 
     /// <summary>统一入口（三触发源共用）：单飞保护 → 事件 → 异步执行（§4.1）。手动触发不去抖（§4.4）。</summary>
@@ -332,6 +380,9 @@ public sealed class Scheduler : IDisposable
         _opt.BalanceInterval = clamped;
         var anchor = _lastSuccessUtc ?? _time.UtcNow;
         _nextTimerDue = anchor + clamped;
+        // 需求变更 2026-10-02：显示期快轮询节奏与本设置无关——若当前处于显示期，到期点钳入 5s 节奏
+        if (_panelVisible && _nextTimerDue > _time.UtcNow + _opt.FastPollInterval)
+            _nextTimerDue = _time.UtcNow + _opt.FastPollInterval;
         AppLog.Info($"余额刷新间隔已更新为 {clamped.TotalMinutes:0} 分钟（即时生效），下次定时到期 {_nextTimerDue.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
     }
 
@@ -369,17 +420,32 @@ public sealed class Scheduler : IDisposable
                     (result.Note is null ? "" : $" note={result.Note}"));
         BalanceRefreshed?.Invoke(this, new BalanceRefreshedArgs(result, duration, source, now));
 
+        // 下次到期 = now + 当前节奏（显示期 5s 快轮询 / 隐藏时设定周期）；失败退避分实例：
+        // 显示期用秒级 _fastRetry（5→10→20→40→60s 封顶），后台用分钟级 _balanceRetry（1/5/15min），
+        // 同一机制两份实例口径同设计 §6.1——两个节奏的失败域互不放大（需求变更 2026-10-02）
+        var cadence = CurrentCadence;
         if (result.Status == BalanceStatus.Success)
         {
             _balanceRetry.OnSuccess();                       // 成功清零（D-13）
+            if (_panelVisible) _fastRetry.OnSuccess();       // 快轮询序列复位 → 恢复 5s
             _lastSuccessUtc = now;
-            _nextTimerDue = now + _opt.BalanceInterval;
+            _nextTimerDue = now + cadence;
             RecomputeNow("余额成功→立即刷新快照");            // C-3：恢复后立即刷新快照
         }
         else if (result.Status == BalanceStatus.NotConfigured)
         {
             // §4.5：未配置为普通完成——不进退避序列（人工通道与定时均不受影响）
-            _nextTimerDue = now + _opt.BalanceInterval;
+            _nextTimerDue = now + cadence;
+        }
+        else if (_panelVisible)
+        {
+            // §4.6：显示期快轮询失败 → 5→10→20→40→60s 封顶循环；失败沿用「失败不回退」UI 语义（D-07）
+            _fastRetry.OnFailure();
+            var fastBackoff = _fastRetry.CurrentBackoff;
+            _nextTimerDue = now + fastBackoff;
+            AppLog.Warn($"余额刷新失败（{result.Status}）→ 显示期快轮询退避 {fastBackoff.TotalSeconds:0}s，" +
+                        $"下次快轮询到期 {_nextTimerDue.ToLocalTime():yyyy-MM-dd HH:mm:ss}，" +
+                        $"连续失败 {_fastRetry.ConsecutiveFailures}");
         }
         else
         {

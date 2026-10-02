@@ -21,6 +21,9 @@ namespace DeepSeekBalanceWidget;
 /// v1.1（2026-09-30）：面板右缘停靠/拖动吸附/钉住/位置记忆/钉住时置顶——持久化经
 /// persistPanelState 回调写 settings.json（PanelX/PanelY/Pinned/PinTopmost），两处钉住开关经
 /// PinnedChanged ↔ TrayController.SetPanelPinned 双向实时同步。
+/// 需求变更 2026-10-02：进度条「剩余口径」（绿条=剩余÷总长，与倒计时同源同步）+ 绿条流光扫过动画
+/// （档位经设置窗口即时生效并持久化）；余额显示期快轮询——panelShown/panelHidden → Scheduler.
+/// NotifyPanelVisibility，显示期每 5s 快刷、隐藏回设定周期、重显立即先刷。
 /// </summary>
 public partial class App : Application
 {
@@ -104,11 +107,16 @@ public partial class App : Application
                     if (UiThread.IsCurrent) _panelVm.UpdateSnapshot(snap);
                     else _ = Dispatcher.BeginInvoke(() => _panelVm.UpdateSnapshot(snap));
                 }
-                _scheduler?.NotifyPanelOpened();
-            });
+                // 需求变更 2026-10-02：显示期信号（内部立即先刷一次 + 30s 去抖 + 快轮询 5s 节奏接管）
+                _scheduler?.NotifyPanelVisibility(true);
+            },
+            // 需求变更 2026-10-02：面板隐藏信号 → 快轮询停止、回到后台设定周期
+            panelHidden: () => _scheduler?.NotifyPanelVisibility(false));
 
         // v1.1：位置记忆注入（无记忆字段 → 每次显示走主屏右缘停靠默认位）
         _panel.SetRememberedPosition(_settings.PanelX, _settings.PanelY);
+        // 需求变更 2026-10-02：流光效果装配（settings.json 档位；设置窗口切换经 ApplyFlowSettings 即时生效）
+        _panel.ApplyFlowSettings(_settings.FlowEnabled, _settings.FlowSpeed, _settings.FlowIntensity);
         _panel.PinnedChanged += pinned =>
         {
             // 两处钉住开关实时同步：面板图钉钮 → 托盘菜单勾选（反向走 _tray.PanelPinToggleRequested）
@@ -244,7 +252,10 @@ public partial class App : Application
                 _scheduler?.RequestBalanceRefresh(BalanceRefreshSource.Manual);
             },
             // v1.1：钉住时置顶开关即时生效（Topmost 立即重算）
-            pinTopmostChanged: v => _panel?.SetPinTopmost(v, "settings-window"));
+            pinTopmostChanged: v => _panel?.SetPinTopmost(v, "settings-window"),
+            // 需求变更 2026-10-02：流光档位开关即时生效（停旧动画→按档位重建，绿条纯色静止或扫过）
+            flowChanged: (enabled, speed, intensity) =>
+                _panel?.ApplyFlowSettings(enabled, speed, intensity));
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
         _settingsWindow.Activate();
