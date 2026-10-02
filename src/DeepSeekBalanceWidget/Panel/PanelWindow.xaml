@@ -16,6 +16,16 @@
         TextOptions.TextFormattingMode="Display"
         FontFamily="Segoe UI, Microsoft YaHei">
 
+    <Window.Resources>
+        <!-- 流光高光带画刷（需求变更 2026-10-02）：水平白渐变、两端透明，叠加在 Brush.Acc 上；
+             带体整体透明度 = 强度档位（极淡/可见，由代码 ApplyFlowSettings 注入），本画刷只含形状 -->
+        <LinearGradientBrush x:Key="FlowHighlightBrush" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#00FFFFFF" Offset="0"/>
+            <GradientStop Color="#FFFFFFFF" Offset="0.5"/>
+            <GradientStop Color="#00FFFFFF" Offset="1"/>
+        </LinearGradientBrush>
+    </Window.Resources>
+
     <!--
       A1 规范（docs/ui-selection.md，硬约束）：面板本体 320×230 / 圆角 14 / 内边距 14,16 / 阴影
       0 10px 26px rgba(15,23,42,.16)。视口 348×258 = 面板 + 四周 14px 阴影余量（探针 A §5.2 做法）。
@@ -124,7 +134,13 @@
                              Foreground="{DynamicResource Brush.Fg}"
                              Typography.NumeralAlignment="Tabular"/>
                     </TextBlock>
-                    <!-- A1 §2 进度条：文字下 8px，高 4px，全圆角，轨道 Line / 填充 Acc -->
+                    <!-- A1 §2 进度条：文字下 8px，高 4px，全圆角，轨道 Line / 填充 Acc。
+                         填充语义（需求变更 2026-10-02）：绿条 = 剩余占比（与倒计时同源同步收缩），灰条 = 已过占比。
+                         流光（需求变更 2026-10-02）：淡白高光带沿绿条从左向右匀速扫过并循环——
+                         高光带是绿 Border 的子元素，经 Border.Clip（圆角矩形，RadiusX/Y=2，SizeChanged 代码更新）
+                         裁剪在绿条圆角矩形内，不溢出灰条/圆角外/文字；TranslateTransform 由
+                         FlowTranslate.BeginAnimation 直驱（合成层动画，不占 UI 线程逐帧），
+                         档位与开关见 PanelWindow.ApplyFlowSettings。 -->
                     <Grid Margin="0,8,0,0" Height="4" Background="Transparent">
                         <Border CornerRadius="2" Background="{DynamicResource Brush.Line}"/>
                         <Grid>
@@ -132,8 +148,21 @@
                                 <ColumnDefinition Width="{Binding ProgressFilled, Mode=OneWay}"/>
                                 <ColumnDefinition Width="{Binding ProgressRemaining, Mode=OneWay}"/>
                             </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" CornerRadius="2" HorizontalAlignment="Stretch"
-                                    Background="{DynamicResource Brush.Acc}"/>
+                            <Border x:Name="ProgressFill" Grid.Column="0" CornerRadius="2" HorizontalAlignment="Stretch"
+                                    Background="{DynamicResource Brush.Acc}"
+                                    SizeChanged="ProgressFill_SizeChanged">
+                                <Canvas>
+                                    <!-- 高光带：水平白渐变（两端透明），矩形透明度 = 强度档位（代码注入） -->
+                                    <Rectangle x:Name="FlowHighlight" Width="56" Height="4"
+                                               Canvas.Left="0" Canvas.Top="0"
+                                               IsHitTestVisible="False" Visibility="Collapsed"
+                                               Fill="{StaticResource FlowHighlightBrush}">
+                                        <Rectangle.RenderTransform>
+                                            <TranslateTransform x:Name="FlowTranslate" X="-56"/>
+                                        </Rectangle.RenderTransform>
+                                    </Rectangle>
+                                </Canvas>
+                            </Border>
                         </Grid>
                     </Grid>
                 </StackPanel>

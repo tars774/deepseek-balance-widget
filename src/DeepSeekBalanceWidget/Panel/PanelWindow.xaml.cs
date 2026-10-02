@@ -3,10 +3,12 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using DeepSeekBalanceWidget.Infrastructure;
 using DeepSeekBalanceWidget.Peak;
 using DeepSeekBalanceWidget.Scheduling;
+using DeepSeekBalanceWidget.Settings;
 
 namespace DeepSeekBalanceWidget.Panel;
 
@@ -25,6 +27,13 @@ namespace DeepSeekBalanceWidget.Panel;
 /// - 位置 + 钉住状态持久化（拖动/吸附结束、钉住切换时回调 persistPanelState 写 settings.json）；
 /// - 钉住置顶可配置（PinTopmost，默认开）：未钉住弹出始终 Topmost；钉住且非置顶时，
 ///   显示瞬间临时置顶抬升 z 序、延迟 Activate 后还原普通层级（保证托盘左键能带到前台）。
+/// 需求变更 2026-10-02：
+/// - 面板隐藏路径新增 panelHidden 回调（App → Scheduler.NotifyPanelVisibility(false)，余额显示期
+///   快轮询的显隐信号）；ShowPanel 既有 panelShown 回调语义不变；
+/// - 绿条流光扫过动画（ApplyFlowSettings）：淡白高光带经 Border.Clip 裁剪在绿条圆角矩形内，
+///   FlowTranslate.BeginAnimation 直驱 TranslateTransform.X（合成层动画，不占 UI 线程逐帧）；
+///   开关关闭停掉并释放动画、复位位移不留残影；档位（节奏/强度）与持久化见 Settings/AppSettings +
+///   SettingsWindow。
 /// </summary>
 public partial class PanelWindow : Window, ISnapshotSink
 {
@@ -43,6 +52,7 @@ public partial class PanelWindow : Window, ISnapshotSink
     private readonly Action _manualRefreshRequested;
     private readonly Action<double, double, bool> _persistPanelState;
     private readonly Action? _panelShown;
+    private readonly Action? _panelHidden;   // 需求变更 2026-10-02：面板隐藏信号（余额快轮询显隐切换）
 
     // ---------------- v1.1：钉住 / 位置记忆 / 拖动状态 ----------------
 
@@ -61,7 +71,7 @@ public partial class PanelWindow : Window, ISnapshotSink
     public bool IsPinned => _pinned;
 
     public PanelWindow(PanelViewModel viewModel, Action openSettings, Action manualRefreshRequested,
-        Action<double, double, bool> persistPanelState, Action? panelShown = null)
+        Action<double, double, bool> persistPanelState, Action? panelShown = null, Action? panelHidden = null)
     {
         InitializeComponent();
         ViewModel = viewModel;
@@ -70,6 +80,7 @@ public partial class PanelWindow : Window, ISnapshotSink
         _manualRefreshRequested = manualRefreshRequested;
         _persistPanelState = persistPanelState;
         _panelShown = panelShown;
+        _panelHidden = panelHidden;
     }
 
     /// <summary>注入 settings.json 中的位置记忆（null/非法值 = 无记忆 → 走默认右缘停靠）。</summary>
@@ -173,6 +184,7 @@ public partial class PanelWindow : Window, ISnapshotSink
         if (Visibility != Visibility.Visible) return;
         Hide();
         _lastHiddenAtUtc = DateTimeOffset.UtcNow;
+        _panelHidden?.Invoke();                   // 需求变更 2026-10-02：隐藏信号（App → Scheduler 快轮询切换）
         AppLog.Info($"面板隐藏 reason={reason}");
     }
 
@@ -335,6 +347,87 @@ public partial class PanelWindow : Window, ISnapshotSink
         _rememberedY = Top;
         _hasRememberedPosition = true;
         AppLog.Info($"面板状态已持久化 reason={reason} 位置=({Left:F0},{Top:F0}) 钉住={_pinned}");
+    }
+
+    // ---------------- 流光效果（需求变更 2026-10-02：绿条流光扫过动画） ----------------
+
+    /// <summary>高光带宽度（DIP）：一道淡白高光带，窄于进度条轨道。</summary>
+    private const double FlowBandWidth = 56;
+
+    /// <summary>
+    /// 扫过行程终点 = 面板内容宽（面板本体 320 − 左右内边距 2×16）；行程起点 = −FlowBandWidth
+    /// （带体完全在裁剪外）。绿条窄于行程时高光在裁剪外自然不可见（需求 B-1，无需特殊处理）。
+    /// </summary>
+    private const double FlowTrackWidth = 288;
+
+    /// <summary>强度档位：极淡（默认，叠加 Brush.Acc 仅隐约可见）/ 可见（一眼可辨但不刺眼）。</summary>
+    private const double FlowOpacityFaint = 0.22;
+    private const double FlowOpacityVisible = 0.45;
+
+    /// <summary>
+    /// 应用流光设置（App 启动装配 + 设置窗口即时切换回调）：先停掉并释放旧动画，开关关闭即止
+    /// （绿条纯色静止、不留残影，需求 B-5/B-6）；开启时按「节奏 × 强度」档位在 FlowTranslate 上
+    /// 直接 BeginAnimation 驱动（合成层动画，不占 UI 线程逐帧计算，需求 B-5）。
+    /// 【修复 2026-10-02 第二关退回】原 Storyboard.SetTarget(anim, FlowTranslate) +
+    /// Begin(FlowHighlight, isControllable:true) 组合静默不生效：Storyboard 的目标解析按
+    /// TargetName（containingObject 的 NameScope）通道设计，TranslateTransform 是 Freezable
+    /// 而非 FrameworkElement/FrameworkContentElement，直引 SetTarget 不在该解析路径内——
+    /// 时钟创建成功但属性挂接从未发生，带体恒停在裁剪外 X=-56（与验收实拍证据一致）。
+    /// 改为对 Freezable 实例直接 BeginAnimation(TranslateTransform.XProperty, anim)：
+    /// 动画时钟经 ApplyAnimationClock 直接注册到该实例的依赖属性动画缓存，无任何 namescope /
+    /// 目标解析中间环节，必然驱动（XAML 内联声明的 Transform 带 InheritanceContext 未冻结，
+    /// 是 BeginAnimation 的规范用法；SnapshotAndReplace 语义支持换档替换与 null 摘除）。
+    /// </summary>
+    public void ApplyFlowSettings(bool enabled, FlowSpeed speed, FlowIntensity intensity)
+    {
+        StopFlowAnimation();
+        if (!enabled)
+        {
+            AppLog.Info("流光效果：已关闭（绿条纯色静止）");
+            return;
+        }
+        FlowHighlight.Opacity = intensity == FlowIntensity.Visible ? FlowOpacityVisible : FlowOpacityFaint;
+        FlowHighlight.Visibility = Visibility.Visible;
+        if (speed == FlowSpeed.Visible)
+        {
+            // 明显：约 2s 一次、无停顿、无缝循环（带体出右缘即回左缘，两态均不可见 → 衔接无静止保持期）
+            var sweep = new DoubleAnimation(-FlowBandWidth, FlowTrackWidth, TimeSpan.FromSeconds(2))
+            {
+                RepeatBehavior = RepeatBehavior.Forever,
+            };
+            FlowTranslate.BeginAnimation(TranslateTransform.XProperty, sweep);
+        }
+        else
+        {
+            // 克制（默认）：一次扫过约 3.5s + 停顿约 1.5s（终点保持期带体在裁剪外），循环约 5s
+            var sweep = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+            sweep.KeyFrames.Add(new LinearDoubleKeyFrame(-FlowBandWidth, TimeSpan.Zero));
+            sweep.KeyFrames.Add(new LinearDoubleKeyFrame(FlowTrackWidth, TimeSpan.FromSeconds(3.5)));
+            sweep.KeyFrames.Add(new LinearDoubleKeyFrame(FlowTrackWidth, TimeSpan.FromSeconds(5)));
+            FlowTranslate.BeginAnimation(TranslateTransform.XProperty, sweep);
+        }
+        AppLog.Info($"流光效果：已开启 节奏={speed} 强度={intensity}（扫过行程 {FlowTrackWidth:0}px + 带宽 {FlowBandWidth:0}px）");
+    }
+
+    /// <summary>
+    /// 停掉并释放流光动画：BeginAnimation(null) 摘除动画时钟（与驱动方式配套——SnapshotAndReplace
+    /// 下摘除后属性即回 XAML 基值 X=-56，此处再显式复位双保险），隐藏带体，不留残影（需求 B-5）。
+    /// </summary>
+    private void StopFlowAnimation()
+    {
+        FlowTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+        FlowTranslate.X = -FlowBandWidth;
+        FlowHighlight.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// 绿 Border 尺寸变化（星宽列每 tick 随剩余占比变化）→ 更新圆角矩形裁剪：
+    /// 高光带只在绿条圆角矩形内可见，不溢出灰条、圆角外或文字（需求 B-1）。
+    /// </summary>
+    private void ProgressFill_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        ProgressFill.Clip = new RectangleGeometry(
+            new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), radiusX: 2, radiusY: 2);
     }
 
     // ---------------- 面板内部交互 ----------------
