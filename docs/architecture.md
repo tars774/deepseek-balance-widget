@@ -36,7 +36,7 @@ src/DeepSeekBalanceWidget/
 | **Credentials** | API Key 写/读/覆盖/删（Credential Manager） | `CRED_TYPE_GENERIC` + `CRED_PERSIST_LOCAL_MACHINE` + Unicode W 变体；`ERROR_NOT_FOUND(1168)` = 无凭据（正常未配置路径）；TargetName `DeepSeekBalanceWidget_ApiKey` |
 | **Balance** | 余额查询 + 解析 + 异常分类 | `balance_infos[]` 嵌套、字符串金额、`decimal.TryParse(InvariantCulture)`、优先 CNY；四类失败精确分类：`NotConfigured` / `Unauthorized(401)` / `NetworkFailure(DNS/超时)` / `MalformedResponse`；`is_available=false` 是展示态非错误 |
 | **Peak** | 峰谷判定 + 节假日数据 | 本地 `DayOfWeek` 优先（周末一律空闲，兜住调休补班周末）；主源成功判定 = 业务层 `code∈{0,200}` + 日期回显匹配（无匹配判失败，禁止静默取 data[0]）；按北京日期缓存 + 前瞻拉取 ≤400 天（本地周末短路）+ 1/5/15 分钟退避全局门（全程加锁） |
-| **Scheduling** | 时间基准与状态驱动源 | 1s `DispatcherTimer` 伺服式绝对对齐（`Interval = clamp(Heartbeat−e, 250, 2000)` + 跳槽位追赶）；六步管线单 tick 全内存；事件只在 UI 线程发；余额三触发源 + 30s 面板去抖 + 单飞重入保护 |
+| **Scheduling** | 时间基准与状态驱动源 | 1s `DispatcherTimer` 伺服式绝对对齐（`Interval = clamp(Heartbeat−e, 250, 2000)` + 跳槽位追赶）；六步管线单 tick 全内存；事件只在 UI 线程发；余额触发源（定时 / 开面板即刷 / 手动）+ 面板显示期 5s 快轮询 + 30s 去抖 + 单飞重入保护 |
 | **Tray** | 托盘图标/菜单/左键切换 | 动态图标唯一干净路径 = 运行时渲染 → 手写 ICO（ICONDIR+ICONDIRENTRY+32bpp BGRA DIB+AND 掩码，R/B 通道顺序敏感）→ BitmapImage 文件 URI；状态翻转沿 NIM_DELETE+NIM_ADD 重建 tooltip；Topmost 面板弹出定位水平避让托盘图标列 |
 | **Panel** | 信息面板 + v1.1 位置行为 | `ShowActivated=false` + 延迟一拍 `Activate()` + `WS_EX_TOOLWINDOW`；显示侧 300ms / 隐藏侧 250ms 双向防抖；v1.1 拖动阈值 4px、右缘吸附 28px、位置/钉住记忆（`PanelX/PanelY/Pinned/PinTopmost`），核心行为抽为纯函数 `PanelPlacement` |
 | **Settings** | 设置窗口 + 本地配置 | 非敏感配置存 `%APPDATA%` JSON（目录可注入供测试）；API Key 只进 Credential Manager；开机自启写 `HKCU\...\CurrentVersion\Run`；主题三模式即时生效并持久化 |

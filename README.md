@@ -64,7 +64,7 @@ flowchart TD
 ```
 
 - 心跳→状态机→UI/托盘的完整管线、事件契约与线程模型：[docs/architecture.md](docs/architecture.md)
-- 定时巡查机制设计（1s 伺服心跳 / 状态重算 / 三触发源 / 退避 / 跨天）：[docs/scheduler-design.md](docs/scheduler-design.md)
+- 定时巡查机制设计（1s 伺服心跳 / 状态重算 / 触发源与显示期快轮询 / 退避 / 跨天）：[docs/scheduler-design.md](docs/scheduler-design.md)
 - 余额接口细节与错误分类：[docs/deepseek-api.md](docs/deepseek-api.md)
 
 ## 技术栈
@@ -183,7 +183,7 @@ dotnet publish src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj `
 | [docs/probe-results.md](docs/probe-results.md) | 五探针结论汇总表 · 关键实测数字 · 降级判定 · 挽回的 bug 清单 |
 | [docs/deepseek-api.md](docs/deepseek-api.md) | 余额接口说明 · 响应结构 · 错误分类 · 计费假设 |
 | [docs/scheduler-design.md](docs/scheduler-design.md) | 定时巡查机制完整设计（心跳管线 / 事件契约 / 退避 / 跨天） |
-| [docs/ui-selection.md](docs/ui-selection.md) | A1 绑定规范 + v1.1 行为增补 |
+| [docs/ui-selection.md](docs/ui-selection.md) | A1 绑定规范 + v1.1/v1.2 行为增补 |
 | [docs/deployment.md](docs/deployment.md) | 构建/发布参数逐条解释 · SmartScreen · 数据位置 · 完全卸载 · Win10 清单 |
 | [docs/test-report.md](docs/test-report.md) | 12 项验收测试实录（含 09:00:00 真实峰谷切换毫秒级捕获） |
 | [docs/release-notes.md](docs/release-notes.md) | 版本对应关系 · 功能清单 · 已知限制 · 校验值 |
