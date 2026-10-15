@@ -118,7 +118,7 @@ git tag -a v1.2.0 -m "v1.2.0：+ 需求变更 2026-10-02（进度条剩余口径
 ## 4. 关联远程并推送
 
 ```bash
-git remote add origin https://github.com/tars774/deepseek-balance-widget.git
+git remote add origin <YOUR_REPO_URL>
 git push -u origin main
 git push origin --tags
 ```

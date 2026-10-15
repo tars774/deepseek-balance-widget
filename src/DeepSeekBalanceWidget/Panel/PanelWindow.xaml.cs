@@ -65,6 +65,10 @@ public partial class PanelWindow : Window, ISnapshotSink
     private Point _dragStartPoint;
     private bool _restoreTopmostAfterActivate;
 
+    // 需求 2026-10-15：每次启动（开机/进程首次显示）强制停靠主屏右下角，
+    // 避免跨屏/断屏后旧记忆位落在屏外；首次定位成功后即落盘为新记忆位并清除该标记。
+    private bool _forceStartupDock = true;
+
     /// <summary>钉住状态变化（面板图钉钮 / 托盘菜单 / 启动恢复）后广播；App 用于同步托盘菜单勾选。</summary>
     public event Action<bool>? PinnedChanged;
 
@@ -209,22 +213,62 @@ public partial class PanelWindow : Window, ISnapshotSink
     // ---------------- 显示定位（v1.1：记忆位优先，否则主屏右缘停靠默认位） ----------------
 
     /// <summary>
-    /// 每次显示前定位：有位置记忆 → 记忆位（多显示器场景不做越界校正，以主屏为准的假设不变）；
-    /// 无记忆 → 主屏工作区右缘停靠（可见卡片贴右缘 + 窗口底边距工作区底 12px，gutter 计算见 PanelPlacement）。
+    /// 每次显示前定位：
+    /// - 启动后首次显示（_forceStartupDock，需求 2026-10-15）→ 强制主屏工作区右缘停靠默认位，
+    ///   忽略旧记忆位（跨屏/断屏后旧记忆可能落在屏外），并把该位置落盘为新记忆位；
+    /// - 之后：有位置记忆且记忆位可达 → 记忆位；记忆位不可达（显示配置变化后旧记忆落在屏外，
+    ///   2026-10-07 实机根因修复）→ 回退主屏工作区右缘停靠位（同样落盘修正，需求 2026-10-15）；
+    /// - 无记忆 → 默认停靠位。
+    /// 默认停靠 = 可见卡片贴右缘 + 窗口底边距工作区底 12px（gutter 计算见 PanelPlacement）。
     /// </summary>
     private void PositionForShow()
     {
         // 首次显示前 ActualWidth/ActualHeight 为 0，必须用显式 Width/Height（348×258，含阴影余量）
         double w = Width, h = Height;
-        if (_hasRememberedPosition)
+        // 主显示器工作区（SystemParameters.WorkArea 即主屏；多显示器假设以主屏为准，v1.1 需求 1）
+        var work = SystemParameters.WorkArea;
+        // v1.2.1（2026-10-07）：记忆位越界校验——边界取虚拟桌面（所有显示器并集，DIP；
+        // WPF 只提供 Left/Top/Width/Height，右/下缘由之换算），副屏停放的合法记忆位
+        // 不应被误判为出屏；不可达才回退，记忆值保留（不写 settings.json）。
+        double vsRight = SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth;
+        double vsBottom = SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight;
+
+        // 需求 2026-10-15：每次启动强制右下角停靠（不信任旧记忆位，防钉住状态下切换屏幕后出屏）
+        if (_forceStartupDock)
+        {
+            _forceStartupDock = false;
+            DockToPrimaryBottomRight(w, h, "启动强制停靠");
+            return;
+        }
+
+        if (_hasRememberedPosition &&
+            PanelPlacement.IsCardReachable(_rememberedX, _rememberedY, w, h,
+                SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop, vsRight, vsBottom))
         {
             Left = _rememberedX;
             Top = _rememberedY;
             return;
         }
-        // 主显示器工作区（SystemParameters.WorkArea 即主屏；多显示器假设以主屏为准，v1.1 需求 1）
+        if (_hasRememberedPosition)
+        {
+            AppLog.Warn($"记忆位不可达（位置记忆出屏），回退默认停靠位 记忆位=({_rememberedX:F0},{_rememberedY:F0}) " +
+                        $"虚拟桌面=({SystemParameters.VirtualScreenLeft:F0},{SystemParameters.VirtualScreenTop:F0},{vsRight:F0},{vsBottom:F0})");
+        }
+        // 回退/默认停靠同样落盘为新记忆位（需求 2026-10-15：修正后落盘，下次启动直接生效）
+        DockToPrimaryBottomRight(w, h, _hasRememberedPosition ? "记忆位不可达回退" : "无记忆默认停靠");
+    }
+
+    /// <summary>
+    /// 停靠主屏工作区右缘底部默认位并落盘为新记忆位（需求 2026-10-15）：
+    /// 计算见 PanelPlacement.ComputeDefaultDockedPosition；持久化走 PersistPanelState
+    /// （含 NaN 守卫与 _rememberedX/Y 内存同步，保证本次会话内后续显示直接生效）。
+    /// </summary>
+    private void DockToPrimaryBottomRight(double w, double h, string reason)
+    {
         var work = SystemParameters.WorkArea;
         (Left, Top) = PanelPlacement.ComputeDefaultDockedPosition(work.Right, work.Bottom, w, h);
+        AppLog.Info($"面板定位：{reason} → 主屏右下角停靠 ({Left:F0},{Top:F0})");
+        PersistPanelState(reason);
     }
 
     // ---------------- v1.1：拖动 + 右缘吸附 ----------------

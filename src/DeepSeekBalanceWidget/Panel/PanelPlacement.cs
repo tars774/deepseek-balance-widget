@@ -25,6 +25,9 @@ public static class PanelPlacement
     /// <summary>右缘吸附阈值：拖动释放后可见卡片右缘距工作区右缘 ≤28px → 水平吸附贴边（垂直保持）。</summary>
     public const double SnapThresholdPx = 28;
 
+    /// <summary>可达性最小可见量（DIP，双轴均需满足）：约=面板顶行按钮区量级，保证露出一角可看见可抓取。</summary>
+    public const double MinVisiblePx = 48;
+
     /// <summary>
     /// 默认停靠位（v1.1 需求 1）：可见卡片贴工作区右缘、窗口底边距工作区底 12px。
     /// 即窗口 X = workRight + gutter − windowWidth（窗口右缘超出屏幕 14px），
@@ -57,6 +60,23 @@ public static class PanelPlacement
         return distance <= threshold
             ? workRight + gutter - windowWidth
             : windowX;
+    }
+
+    /// <summary>
+    /// 记忆位可达性判定（2026-10-07 实机根因修复）：窗口坐标 → 可见卡片（内缩 gutter）与给定边界
+    /// 矩形（调用方传虚拟桌面）在两轴的可见交集均 ≥ minVisible 才可达；否则调用方回退默认停靠位。
+    /// 用虚拟桌面而非主屏工作区：副屏停放的合法记忆位不应被误判（默认停靠仍以主屏为准，假设不变）。
+    /// 局限：混合 DPI 多屏下 DIP 换算不精确（出屏判定留有余量，可接受）。
+    /// </summary>
+    public static bool IsCardReachable(double windowX, double windowY, double windowWidth, double windowHeight,
+        double boundsLeft, double boundsTop, double boundsRight, double boundsBottom,
+        double gutter = ShadowGutter, double minVisible = MinVisiblePx)
+    {
+        double cardX = windowX + gutter, cardY = windowY + gutter;
+        double cardW = windowWidth - 2 * gutter, cardH = windowHeight - 2 * gutter;
+        double visibleW = Math.Min(cardX + cardW, boundsRight) - Math.Max(cardX, boundsLeft);
+        double visibleH = Math.Min(cardY + cardH, boundsBottom) - Math.Max(cardY, boundsTop);
+        return visibleW >= minVisible && visibleH >= minVisible;
     }
 }
 

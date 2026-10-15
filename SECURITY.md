@@ -13,8 +13,8 @@
 
 请通过以下方式私下联系：
 
-- 邮箱：tars774@163.com
-- 或通过 GitHub 私信联系仓库所有者（[@tars774](https://github.com/tars774)）
+- 邮箱：<YOUR_CONTACT_EMAIL>
+- 或通过 GitHub 私信联系仓库所有者（[@<YOUR_GITHUB_USERNAME>](https://github.com/<YOUR_GITHUB_USERNAME>)）
 
 请在报告中包含：受影响版本、复现步骤（越具体越好）、影响评估、（如可能）修复建议。我们会在 **72 小时内**确认收到，并在修复发布前与你协调披露时间线。
 

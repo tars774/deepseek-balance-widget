@@ -95,4 +95,77 @@ public sealed class PanelPlacementTests
         Assert.False(PanelBehavior.ShouldPersistPosition(double.NaN, double.NaN));   // 启动恢复钉住态（窗口未显示）
         Assert.True(PanelBehavior.ShouldPersistPosition(1586, 770));                 // 正常位置
     }
+
+    // ---------------- v1.2.1 记忆位越界回退（IsCardReachable，2026-10-07 修复） ----------------
+    // 边界 = 虚拟桌面（所有显示器并集），判定对象 = 可见卡片（窗口内缩 ShadowGutter=14），双轴交集均需 ≥48px。
+
+    private const double BoundsRight = 1600, BoundsBottom = 1000;   // 单屏 1600×1000 逻辑屏的虚拟桌面
+
+    [Fact]
+    public void Real_Machine_2026_10_07_Remembered_Position_Is_Unreachable()
+    {
+        // 2026-10-07 用户机实机值：2560×1440 逻辑屏的右缘停靠记忆位 (2226,1146)（hwnd 物理
+        // (4452,2291)-(5148,2807) @200%），换到 1600×1000 逻辑屏后整窗出屏 → 必须判不可达并回退
+        Assert.False(PanelPlacement.IsCardReachable(2226, 1146, W, H, 0, 0, BoundsRight, BoundsBottom));
+    }
+
+    [Fact]
+    public void Default_Docked_Position_And_Right_Edge_Snap_Position_Are_Reachable()
+    {
+        // 1600×952 工作区（任务栏 48px）的默认停靠位 = (1600+14−348, 952−12−258) = (1266,682)
+        var (x, y) = PanelPlacement.ComputeDefaultDockedPosition(1600, 952, W, H);
+        Assert.Equal(1266, x);
+        Assert.Equal(682, y);
+        Assert.True(PanelPlacement.IsCardReachable(x, y, W, H, 0, 0, BoundsRight, BoundsBottom));
+
+        // 右缘吸附位与默认停靠 X 同值（卡片贴工作区右缘，窗口右缘超出 14px）→ 同样可达
+        var snapped = PanelPlacement.SnapX(1500, 1600, W);
+        Assert.Equal(x, snapped);
+        Assert.True(PanelPlacement.IsCardReachable(snapped, y, W, H, 0, 0, BoundsRight, BoundsBottom));
+    }
+
+    [Theory]
+    [InlineData(1538, 682, true)]       // X 轴：可见宽 = 1600−(1538+14) 恰好 48 → 可达（阈值含边界）
+    [InlineData(1538.1, 682, false)]    // X 轴：可见宽 47.9 → 不可达
+    [InlineData(1266, 938, true)]       // Y 轴：可见高 = 1000−(938+14) 恰好 48 → 可达
+    [InlineData(1266, 938.1, false)]    // Y 轴：可见高 47.9 → 不可达
+    public void Reachability_Threshold_Is_48px_On_Both_Axes(double windowX, double windowY, bool expected)
+    {
+        Assert.Equal(expected, PanelPlacement.IsCardReachable(windowX, windowY, W, H, 0, 0, BoundsRight, BoundsBottom));
+    }
+
+    [Theory]
+    [InlineData(1700, 682)]     // 仅 X 出屏（卡片 x 1714..2034 全在右缘外）；Y 方向可见高 230px 充足
+    [InlineData(1266, 1060)]    // 仅 Y 出屏（卡片 y 1074..1304 全在底边外）；X 方向可见宽 320px 充足
+    public void Offscreen_On_Single_Axis_Is_Unreachable(double windowX, double windowY)
+    {
+        // 双轴均需 ≥48px：单轴充足不构成可达
+        Assert.False(PanelPlacement.IsCardReachable(windowX, windowY, W, H, 0, 0, BoundsRight, BoundsBottom));
+    }
+
+    [Theory]
+    [InlineData(-100, 300, true)]    // 左缘外 100px：可见宽 = 320−(100−14) = 234px → 可达
+    [InlineData(300, -100, true)]    // 上缘外 100px：可见高 = 230−(100−14) = 144px → 可达
+    [InlineData(-400, 300, false)]   // 卡片整块在左缘外（卡片右缘 −66 < 0）→ 不可达
+    [InlineData(300, -300, false)]   // 卡片整块在上缘外（卡片底边 −56 < 0）→ 不可达
+    public void Negative_Coordinates_Partially_Visible_Stay_Reachable(double windowX, double windowY, bool expected)
+    {
+        Assert.Equal(expected, PanelPlacement.IsCardReachable(windowX, windowY, W, H, 0, 0, BoundsRight, BoundsBottom));
+    }
+
+    [Theory]
+    [InlineData(3200, true)]     // 虚拟桌面含副屏（主屏 0..1600 + 副屏 1600..3200）：合法停放 →
+                                 // 有可达交集，不得回退（防"用主屏工作区判定"回归）
+    [InlineData(1600, false)]    // 对照组：边界为主屏时卡片（1714..2034）全在屏外 → 不可达
+    public void Secondary_Screen_Parked_Position_Uses_Virtual_Desktop_Bounds(double boundsRight, bool expected)
+    {
+        Assert.Equal(expected, PanelPlacement.IsCardReachable(1700, 682, W, H, 0, 0, boundsRight, BoundsBottom));
+    }
+
+    [Fact]
+    public void Remembered_Position_Inside_Screen_Is_Reachable()
+    {
+        // 有记忆且屏内（如鼠拖到屏幕中部）→ 使用记忆位（PositionForShow 的记忆分支语义）
+        Assert.True(PanelPlacement.IsCardReachable(600, 400, W, H, 0, 0, BoundsRight, BoundsBottom));
+    }
 }
