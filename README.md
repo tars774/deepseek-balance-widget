@@ -17,6 +17,10 @@
 | **v1.1 钉住面板** | 面板顶行图钉钮 + 托盘菜单"钉住面板"勾选项，两处实时同步；钉住后失焦不再隐藏 |
 | **v1.1 位置记忆** | 拖动/吸附与钉住状态持久化；重启后点托盘显示在记忆位置（仍不自动弹出） |
 | **v1.1 钉住时置顶** | 设置窗口可配置"钉住时置顶"（默认开）；未钉住弹出时始终置顶 |
+| **v1.2 剩余口径进度条** | 4px 进度条改为「剩余÷总长」口径（与倒计时同源计算）：倒计时每减 1 秒进度条同步缩短，条长与 HH:mm:ss 严格逐秒同步，语义为"本时段还剩多少" |
+| **v1.2 绿条流光动画** | 淡白高光带沿进度条周期扫过；设置窗口新增「流光效果」节（开关 + 节奏「克制/明显」× 强度「极淡/可见」四档，默认开·克制×极淡），即时生效并持久化；关闭时绿条纯色静止无残影 |
+| **v1.2 显示期快轮询** | 面板显示期间余额刷新提速为每 5 秒；隐藏即回后台设定周期，重显先立即刷一次；失败按 5→10→20→40→60s 指数退避封顶，成功即恢复 5s |
+| **v1.3 启动初始化定位** | 每次启动自动读取屏幕信息，强制停靠**主屏右下角**并落盘为新记忆位——彻底避免钉住状态下切换/断开显示器后旧记忆位落在屏幕外；之后保留拖动记忆，记忆位出屏时自动回退右下角并修正落盘 |
 | 峰谷判定（离线） | 工作日 09:00–12:00、14:00–18:00 高峰；周六/周日一律全天空闲；法定节假日按"本地星期优先"规则（调休补班周末不误判） |
 | 节假日双源 | 主源 + 备源自动切换，按北京日期缓存、跨天重拉、前瞻 400 天；双源失败退避 1/5/15 分钟并降级为"周一至五"本地判断（UI 标注） |
 | 余额查询 | DeepSeek 官方 `/user/balance`；API Key 仅存 Windows 凭据管理器；30 分钟后台巡查 + 打开面板即刷（30s 去抖）+ 手动按钮三触发源；失败精确分类（401 / DNS / 超时 / 畸形 JSON） |
@@ -79,12 +83,12 @@ flowchart TD
 
 ## 快速开始
 
-1. 从 [Releases](../../releases) 下载 `DeepSeekBalanceWidget.exe`（单文件，无需安装，无需 .NET 环境）。
+1. 从 [Releases](../../releases) 下载（单文件，无需安装，无需 .NET 环境）。**v1.3 起发布物为 exe + 5 个 WPF 原生 DLL（推荐下载整包 zip 解压到同一文件夹）**。
 2. 若浏览器下载触发 SmartScreen："更多信息" → "仍要运行"（exe 未签名，仅首次；详见 [docs/deployment.md §4](docs/deployment.md)）。建议先核对 Release 附件提供的 SHA-256。
-3. 双击运行：任务栏通知区出现状态圆点（新装通常在溢出弹层"^"内，建议右键任务栏固定到可见区）。
+3. 双击运行：任务栏通知区出现状态圆点（新装通常在溢出弹层"^"内，建议右键任务栏固定到可见区）。**v1.3 起首次弹出自动停靠主屏右下角**。
 4. 左键圆点：弹出面板。右键圆点：打开面板 / 设置 / 退出。
 5. （可选）"设置" → 粘贴 `sk-` 开头的 DeepSeek API Key → "保存 Key"。Key 只进 Windows 凭据管理器，不落文件、不进日志。**不配置 Key 也能用**：峰谷/倒计时/进度/主题全部离线可用，仅余额区提示。
-6. 钉住与拖动（v1.1）：点面板顶行图钉钮（或托盘菜单"钉住面板"）常驻显示；按住面板空白处拖动，靠近屏幕右缘自动吸附；位置跨启动记忆。
+6. 钉住与拖动（v1.1）：点面板顶行图钉钮（或托盘菜单"钉住面板"）常驻显示；按住面板空白处拖动，靠近屏幕右缘自动吸附；位置跨启动记忆（v1.3 起每次启动先强制回右下角初始化，之后沿用记忆）。
 
 ## 构建 · 测试 · 发布
 
@@ -92,7 +96,7 @@ flowchart TD
 # 还原 + 构建（要求 0 警告 0 错误，TreatWarningsAsErrors=true）
 dotnet build src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj -c Release
 
-# 集成测试（43 用例；真实 WPF 组件 + 注入假时钟）
+# 集成测试（56 用例；真实 WPF 组件 + 注入假时钟）
 dotnet test tests/DeepSeekBalanceWidget.IntegrationTests/DeepSeekBalanceWidget.IntegrationTests.csproj -c Release
 
 # SCD 自包含·压缩·单文件发布（约 1 分钟，压缩占大头）
@@ -184,6 +188,7 @@ dotnet publish src/DeepSeekBalanceWidget/DeepSeekBalanceWidget.csproj `
 | [docs/deployment.md](docs/deployment.md) | 构建/发布参数逐条解释 · SmartScreen · 数据位置 · 完全卸载 · Win10 清单 |
 | [docs/test-report.md](docs/test-report.md) | 12 项验收测试实录（含 09:00:00 真实峰谷切换毫秒级捕获） |
 | [docs/release-notes.md](docs/release-notes.md) | 版本对应关系 · 功能清单 · 已知限制 · 校验值 |
+| [docs/release-v1.3.md](docs/release-v1.3.md) | v1.3 发布说明（启动初始化定位） |
 | [docs/git-and-release.md](docs/git-and-release.md) | git 提交序列示例 · 分支与标签策略 · GitHub Release 步骤 |
 | [docs/showcase/](docs/showcase/) | 技术亮点清单 · 5 分钟演示脚本 · 常见技术问答 |
 
